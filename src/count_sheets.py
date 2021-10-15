@@ -6,7 +6,7 @@ import re
 
 from lib import sndb
 
-XL_TEMPLATE_FILE = os.path.join(os.path.dirname(__file__), "template.xlsx")
+XL_TEMPLATE_FILE = os.path.join(os.path.dirname(__file__), "templates", "template.xlsx")
 
 ROUND_DIGITS = 3
 IRREGULAR_SHAPE_THRESHOLD = 100.0
