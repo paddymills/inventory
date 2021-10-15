@@ -1,9 +1,10 @@
 
-import sndb
 import xlwings
 import os
 import sys
 import re
+
+from lib import sndb
 
 XL_TEMPLATE_FILE = os.path.join(os.path.dirname(__file__), "template.xlsx")
 
