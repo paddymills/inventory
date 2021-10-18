@@ -113,7 +113,8 @@ def create_count_sheet(location, fail_silent=False):
                 sheets[sheet.mm] = sheet
 
     if sheets:
-        dump_to_xl([x.xl_format() for x in sheets.values()], location)
+        sorted_sheets = sorted(sheets.values(), key=lambda s: s.mm)
+        dump_to_xl([x.xl_format() for x in sorted_sheets], location)
     elif not fail_silent:
         print("No data returned for location", location)
 
