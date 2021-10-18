@@ -100,6 +100,7 @@ def create_count_sheet(location, fail_silent=False):
         cursor.execute("""
             SELECT * FROM Stock
             WHERE Location=?
+            AND SheetName NOT LIKE 'W%'
         """, location)
 
         for row in cursor.fetchall():
@@ -121,7 +122,7 @@ def dump_to_xl(data, location):
     wb = xlwings.Book(XL_TEMPLATE_FILE)
     sheet = wb.sheets["TEMPLATE"].copy(name=location)
     sheet.range("A2").value = data
-    sheet.range("K1").value = location
+    sheet.range("H1").value = location
 
 
 if __name__ == "__main__":
