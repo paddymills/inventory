@@ -6,7 +6,7 @@ with sndb.get_sndb_conn() as db:
     cursor.execute("""
         SELECT
             CompletedProgram.AutoID, CompletedProgram.CompletedDateTime,
-            CompletedProgram.ProgramName,
+            CompletedProgram.ProgramName, CompletedProgram.MachineName,
             Program.SheetName, Stock.PrimeCode
         FROM CompletedProgram
         INNER JOIN Program
@@ -18,4 +18,4 @@ with sndb.get_sndb_conn() as db:
 
     for row in cursor.fetchall():
         dt = row.CompletedDateTime.isoformat()
-        print('[{}] {} | {}\t{}\t{}'.format(dt, row.AutoID, row.ProgramName, row.SheetName, row.PrimeCode))
+        print('[{}] {} | {:<7}{:<10}{:<20}{:<20}'.format(dt, row.AutoID, row.ProgramName, row.SheetName, row.PrimeCode, row.MachineName))
