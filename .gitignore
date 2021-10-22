@@ -14,3 +14,6 @@ venv.bak/
 
 # open xl
 ~$*
+
+# temp text files
+*.txt
