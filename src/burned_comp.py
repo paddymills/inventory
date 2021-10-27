@@ -11,7 +11,7 @@ def get_burned():
     with sndb.get_sndb_conn() as db:
         cursor = db.cursor()
         cursor.execute("""
-            SELECT 
+            SELECT
                 CompletedProgram.AutoID, CompletedProgram.CompletedDateTime,
                 CompletedProgram.ProgramName, CompletedProgram.MachineName,
                 Program.SheetName,
@@ -28,13 +28,12 @@ def get_burned():
                 FROM TransAct
                 WHERE TransType = 'SN70'
             )
+            AND CompletedProgram.MachineName NOT LIKE 'Plant_3_%'
             ORDER BY Stock.PrimeCode
         """)
 
         data = []
         for row in cursor.fetchall():
-            is_inv = (row.SheetData4 == '10.18.21')
-
             data.append(dict(
                 ArcDateTime=row.CompletedDateTime,
                 Prog=row.ProgramName,
@@ -42,9 +41,9 @@ def get_burned():
                 Location=row.Location,
                 SAP_MM=row.PrimeCode,
                 Machine=row.MachineName,
-                # Counted=is_inv,
+                Counted=(row.SheetData4 == '10.18.21'),
             ))
-        
+
         print(tabulate(data, headers="keys"))
 
 
