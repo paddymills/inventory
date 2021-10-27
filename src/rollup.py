@@ -1,5 +1,4 @@
 
-import enum
 from lib import sndb
 import xlwings
 
@@ -7,11 +6,12 @@ from re import compile as regex
 
 LOCATION_RE = regex(r'([A-Za-z])(\d+)')
 
+
 def main():
     dump_to_xl([
-        # dict(name="Plant 2 Yard",       data=main_yard()),
+        dict(name="Plant 2 Yard",       data=main_yard()),
         dict(name="Detail Bay Yard",    data=detail_bay()),
-        dict(name="Staged or Burned",   data=staged_or_burned()),
+        # dict(name="Staged or Burned",   data=staged_or_burned()),
     ])
 
 
@@ -56,7 +56,7 @@ def staged_or_burned():
 def zfill_loc(loc):
     try:
         row, num = LOCATION_RE.match(loc).group(1, 2)
-    except:
+    except TypeError:
         return loc
 
     return "{}{:02}".format(row, int(num))
@@ -74,7 +74,8 @@ def pull_locs(locs):
                     Location AS loc,
                     PrimeCode AS mm,
                     Mill AS wbs,
-                    Qty * Area AS area
+                    Qty * Area AS area,
+                    Remark as uom
                 FROM
                     Stock
                 WHERE
@@ -86,9 +87,12 @@ def pull_locs(locs):
             for row in cursor.fetchall():
                 key = "{}_{}_{}".format(row.loc, row.mm, row.wbs)
                 if key not in data:
-                    data[key] = [row.loc, row.mm, row.wbs, 0]
+                    data[key] = [key, row.loc, row.mm, row.wbs, 0, row.uom]
 
-                data[key][-1] += row.area
+                if row.uom == 'FT2':
+                    row.area = row.area // 144
+
+                data[key][4] += row.area
 
     return sorted(data.values(), key=lambda x: (zfill_loc(x[0]), x[1], x[2]))
 
@@ -103,7 +107,7 @@ def dump_to_xl(datasets):
             sheet = wb.sheets.add(after=sheet)
 
         sheet.name = data["name"]
-        sheet.range("A1").value = ["Location", "SAP MM", "WBS Element", "Qty (IN2)"]
+        sheet.range("A1").value = ["UID", "Location", "SAP MM", "WBS Element", "Qty", "UoM"]
         sheet.range("A2").value = data["data"]
         sheet.range("D:D").number_format = '0.000'
         sheet.autofit()
