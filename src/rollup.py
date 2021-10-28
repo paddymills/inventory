@@ -89,9 +89,6 @@ def pull_locs(locs):
                 if key not in data:
                     data[key] = [key, row.loc, row.mm, row.wbs, 0, row.uom]
 
-                if row.uom == 'FT2':
-                    row.area = row.area // 144
-
                 data[key][4] += row.area
 
     return sorted(data.values(), key=lambda x: (zfill_loc(x[0]), x[1], x[2]))
