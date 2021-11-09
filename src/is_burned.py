@@ -54,8 +54,9 @@ def main():
                 except KeyError:
                     print('Unknown state:', row)
 
-            if qrow[1] < qrow[2]:
-                qtys.append(qrow)
+            # if qrow[1] >= qrow[2]:
+            #     continue
+            qtys.append(qrow)
 
     print(tabulate(qtys, headers='firstrow'))
 
