@@ -1,22 +1,18 @@
 
-from lib import sndb
-from tabulate import tabulate
+from lib import sndb, printer
 
 
-def main():
-    get_burned()
-
-
-def get_burned():
+def get_burned(csv=False):
     with sndb.get_sndb_conn() as db:
         cursor = db.cursor()
         cursor.execute("""
             SELECT
-                CompletedProgram.AutoID, CompletedProgram.CompletedDateTime,
-                CompletedProgram.ProgramName, CompletedProgram.MachineName,
-                Program.SheetName,
-                Stock.Location, Stock.PrimeCode,
-                Stock.SheetData4
+                CompletedProgram.CompletedDateTime AS ArcDateTime,
+                CompletedProgram.ProgramName AS Program,
+                CompletedProgram.MachineName AS Machine,
+                Program.SheetName AS Sheet,
+                Stock.Location AS Location,
+                Stock.PrimeCode AS SAP_MM
             FROM CompletedProgram
             INNER JOIN Program
                 ON  CompletedProgram.ProgramName=Program.ProgramName
@@ -32,20 +28,9 @@ def get_burned():
             ORDER BY Stock.PrimeCode
         """)
 
-        data = []
-        for row in cursor.fetchall():
-            data.append(dict(
-                ArcDateTime=row.CompletedDateTime,
-                Prog=row.ProgramName,
-                Sheet=row.SheetName,
-                Location=row.Location,
-                SAP_MM=row.PrimeCode,
-                Machine=row.MachineName,
-                Counted=(row.SheetData4 == '10.18.21'),
-            ))
-
-        print(tabulate(data, headers="keys"))
+        res = sndb.collect_table_data(cursor, "Part")
+        printer.print_to_source(res, csv)
 
 
 if __name__ == "__main__":
-    main()
+    get_burned(csv=True)
