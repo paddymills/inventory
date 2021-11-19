@@ -2,7 +2,7 @@ import xlwings
 import pyodbc
 import os
 
-import parsers
+from lib import parsers
 
 from re import compile as regex
 from collections import defaultdict

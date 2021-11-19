@@ -1,14 +1,15 @@
 
-import sndb
+from lib import sndb
 from tabulate import tabulate
 
 
 def main():
-    part = input("Part: ")
-    if not part:
-        return
+    while True:
+        part = input("\n\tPart: ")
+        if not part:
+            return
 
-    show_part(part)
+        show_part(part)
 
 def show_part(part):
     with sndb.get_sndb_conn() as db:
