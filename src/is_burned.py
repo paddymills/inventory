@@ -1,24 +1,60 @@
 
+import csv
+import sys
+
 from lib import parsers
 from lib import sndb
+from lib import printer
 
+from argparse import ArgumentParser
 from collections import defaultdict
 from tabulate import tabulate
 from tqdm import tqdm
 
-def main():
+def main(as_csv=False):
     data = parsers.parse_sheet()
-    parts = defaultdict(int)
+    parts = defaultdict(lambda: [0, 0])
     for d in data:
-        parts[d.part] += d.qty
+        if d.type == "PP01":
+            parts[d.part][0] += d.qty
+        elif d.type == "PR":
+            parts[d.part][1] += d.qty
     
     with sndb.get_sndb_conn() as db:
         cursor = db.cursor()
 
-        states = dict(burned=2, nested=3)
-        qtys = [['part', 'sap', *states.keys()]]
-        for part, qty in tqdm(parts.items()):
+        states = dict(required=1, burned=2, nested=3)
+        qtys = [['part', *states.keys(), 'open', 'cnf']]
+        for part, _qtys in tqdm(parts.items()):
+            qty_cnf, qty_planned = _qtys
+
             cursor.execute("""
+                SELECT
+                    'required' AS state,
+                    PartName AS part,
+                    '--' AS prog,
+                    QtyOrdered AS qty
+                FROM Part
+                WHERE
+                    PartName LIKE ?
+                AND
+                    WONumber NOT IN ('EXTRAS', 'REMAKES')
+
+                UNION
+
+                SELECT
+                    'required' AS state,
+                    PartName AS part,
+                    '--' AS prog,
+                    QtyOrdered AS qty
+                FROM PartArchive
+                WHERE
+                    PartName LIKE ?
+                AND
+                    WONumber NOT IN ('EXTRAS', 'REMAKES')
+
+                UNION
+
                 SELECT
                     'nested' AS state,
                     PartName AS part,
@@ -44,10 +80,9 @@ def main():
                     WONumber NOT IN ('EXTRAS', 'REMAKES')
                 AND
                     TransType='SN102'
-            """, [part.replace("-", "%", 1)] * 2)
+            """, [part.replace("-", "%", 1)] * 4)
 
-            qty_burned, qty_nested = (0, 0)
-            qrow = [part, qty, 0, 0]
+            qrow = [part, *[0] * len(states), int(qty_planned), int(qty_cnf)]
             for row in cursor.fetchall():
                 try:
                    qrow[states[row.state]] += int(row.qty)
@@ -58,8 +93,12 @@ def main():
             #     continue
             qtys.append(qrow)
 
-    print(tabulate(qtys, headers='firstrow'))
+    printer.print_to_source(qtys, as_csv)
 
 
 if __name__ == "__main__":
-    main()
+    parser = ArgumentParser()
+    parser.add_argument("--csv", action="store_true", help="Return as csv output")
+    args = parser.parse_args()
+
+    main(args.csv)
