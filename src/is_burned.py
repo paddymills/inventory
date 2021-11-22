@@ -23,69 +23,73 @@ def main(as_csv=False):
     with sndb.get_sndb_conn() as db:
         cursor = db.cursor()
 
-        states = dict(required=1, burned=2, nested=3)
+        states = dict(
+            required=1,
+            nested=2,
+            burned=3,
+            nested_rem=4,
+            burned_rem=5,
+        )
         qtys = [['part', *states.keys(), 'open', 'cnf']]
         for part, _qtys in tqdm(parts.items()):
             qty_cnf, qty_planned = _qtys
 
             cursor.execute("""
-                SELECT
-                    'required' AS state,
-                    PartName AS part,
-                    '--' AS prog,
-                    QtyOrdered AS qty
-                FROM Part
+                SELECT *
+                FROM (
+                    SELECT
+                        'required' AS state,
+                        PartName AS part,
+                        QtyOrdered AS qty,
+                        WONumber AS workorder
+                    FROM Part
+                    WHERE
+                        WONumber NOT IN ('EXTRAS', 'REMAKES')
+
+                    UNION
+
+                    SELECT
+                        'required' AS state,
+                        PartName AS part,
+                        QtyOrdered AS qty,
+                        WONumber AS workorder
+                    FROM PartArchive
+                    WHERE
+                        WONumber NOT IN ('EXTRAS', 'REMAKES')
+
+                    UNION
+
+                    SELECT
+                        'nested' AS state,
+                        PartName AS part,
+                        QtyInProcess AS qty,
+                        WONumber AS workorder
+                    FROM PIP
+
+                    UNION
+
+                    SELECT
+                        'burned' AS state,
+                        PartName AS part,
+                        QtyInProcess AS qty,
+                        WONumber AS workorder
+                    FROM PIPArchive
+                    WHERE
+                        TransType='SN102'
+                ) AS PartAndPIP
                 WHERE
-                    PartName LIKE ?
-                AND
-                    WONumber NOT IN ('EXTRAS', 'REMAKES')
-
-                UNION
-
-                SELECT
-                    'required' AS state,
-                    PartName AS part,
-                    '--' AS prog,
-                    QtyOrdered AS qty
-                FROM PartArchive
-                WHERE
-                    PartName LIKE ?
-                AND
-                    WONumber NOT IN ('EXTRAS', 'REMAKES')
-
-                UNION
-
-                SELECT
-                    'nested' AS state,
-                    PartName AS part,
-                    ProgramName AS prog,
-                    QtyInProcess AS qty
-                FROM PIP
-                WHERE
-                    PartName LIKE ?
-                AND
-                    WONumber NOT IN ('EXTRAS', 'REMAKES')
-
-                UNION
-
-                SELECT
-                    'burned' AS state,
-                    PartName AS part,
-                    ProgramName AS prog,
-                    QtyInProcess AS qty
-                FROM PIPArchive
-                WHERE
-                    PartName LIKE ?
-                AND
-                    WONumber NOT IN ('EXTRAS', 'REMAKES')
-                AND
-                    TransType='SN102'
-            """, [part.replace("-", "%", 1)] * 4)
+                    part LIKE ?  
+            """, "%" + part[4:].replace("-", "%", 1))
 
             qrow = [part, *[0] * len(states), int(qty_planned), int(qty_cnf)]
             for row in cursor.fetchall():
+                if row.workorder in ('EXTRAS', 'REMAKES'):
+                    addl = "_rem"
+                else:
+                    addl = ""
+
                 try:
-                   qrow[states[row.state]] += int(row.qty)
+                   qrow[states[row.state + addl]] += int(row.qty)
                 except KeyError:
                     print('Unknown state:', row)
 
