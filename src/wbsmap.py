@@ -1,6 +1,7 @@
 
+from argparse import ArgumentParser
 from lib import sndb
-from tabulate import tabulate
+from lib import printer
 
 
 def main():
@@ -14,21 +15,23 @@ def main():
 def show_part(part):
     with sndb.get_sndb_conn() as db:
         cursor = db.cursor()
-
-        data = [None]
         cursor.execute("""
             SELECT * FROM SAPPartWBS
             WHERE PartName=?
         """, part)
 
-        for row in cursor.fetchall():
-            data.append(row)
-        else:
-            data[0] = [t[0] for t in row.cursor_description]
+        data = sndb.collect_table_data(cursor, "wbsmap")
 
-    print(tabulate(data, headers="firstrow"))
+    printer.print_to_source(data, as_csv=True)
 
 
 if __name__ == "__main__":
-    # show_part("1200055B-X206F")
-    main()
+    parser = ArgumentParser()
+    parser.add_argument("part", nargs="?", default=None)
+    args = parser.parse_args()
+
+    if args.part:
+        show_part(args.part)
+    else:
+        # show_part("1200055B-X206F")
+        main()
