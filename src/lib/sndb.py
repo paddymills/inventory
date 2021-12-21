@@ -44,6 +44,6 @@ def collect_table_data(cursor, func="origin not given"):
         try:
             data[0] = [t[0] for t in row.cursor_description]
         except UnboundLocalError:
-            return [["values"],["nothing returned ({})".format(func)]]
+            return [["values"], ["nothing returned ({})".format(func)]]
 
     return data

@@ -1,14 +1,10 @@
 
-import csv
-import sys
 import re
 
 from lib import sndb
 from lib import printer
 
 from argparse import ArgumentParser
-from datetime import datetime
-from tabulate import tabulate
 
 
 def main(val=None, force_matl=False):
@@ -109,6 +105,7 @@ def query_sheet(sheet):
         """, [sheet, sheet])
 
         return sndb.collect_table_data(cursor, "Sheet")
+
 
 def query_part(part):
     part = "%" + part.replace('-', '%') + "%"

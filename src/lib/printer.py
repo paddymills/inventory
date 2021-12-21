@@ -1,7 +1,6 @@
 
 import csv
 
-from datetime import datetime
 from sys import stdout
 from tabulate import tabulate
 
