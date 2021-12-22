@@ -2,8 +2,6 @@
 import pyodbc
 import pandas
 
-from tqdm import tqdm
-from collections import defaultdict
 
 CS = "DRIVER={SQL Server};SERVER=HIIWINBL18;DATABASE=SNDBase91;UID=SNUser;PWD=BestNest1445"
 

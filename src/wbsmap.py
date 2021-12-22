@@ -12,15 +12,15 @@ def main():
 
         show_part(part)
 
+
 def show_part(part):
-    with sndb.get_sndb_conn() as db:
-        cursor = db.cursor()
-        cursor.execute("""
+    with sndb.SndbConnection(func="wbsmap") as db:
+        db.cursor.execute("""
             SELECT * FROM SAPPartWBS
             WHERE PartName=?
         """, part)
 
-        data = sndb.collect_table_data(cursor, "wbsmap")
+        data = db.collect_table_data()
 
     printer.print_to_source(data, as_csv=True)
 
