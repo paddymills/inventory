@@ -1,28 +1,23 @@
 
-import csv
-import sys
-
 from lib import parsers
 from lib import sndb
 from lib import printer
 
 from argparse import ArgumentParser
 from collections import defaultdict
-from tabulate import tabulate
 from tqdm import tqdm
 
+
 def main(as_csv=False):
-    data = parsers.parse_sheet()
+    data = parsers.SheetParser().parse_sheet()
     parts = defaultdict(lambda: [0, 0])
     for d in data:
         if d.type == "PP01":
             parts[d.part][0] += d.qty
         elif d.type == "PR":
             parts[d.part][1] += d.qty
-    
-    with sndb.get_sndb_conn() as db:
-        cursor = db.cursor()
 
+    with sndb.SndbConnection() as db:
         states = dict(
             required=1,
             nested=2,
@@ -34,7 +29,7 @@ def main(as_csv=False):
         for part, _qtys in tqdm(parts.items()):
             qty_cnf, qty_planned = _qtys
 
-            cursor.execute("""
+            db.cursor.execute("""
                 SELECT *
                 FROM (
                     SELECT
@@ -78,18 +73,18 @@ def main(as_csv=False):
                         TransType='SN102'
                 ) AS PartAndPIP
                 WHERE
-                    part LIKE ?  
+                    part LIKE ?
             """, "%" + part[4:].replace("-", "%", 1))
 
             qrow = [part, *[0] * len(states), int(qty_planned), int(qty_cnf)]
-            for row in cursor.fetchall():
+            for row in db.cursor.fetchall():
                 if row.workorder in ('EXTRAS', 'REMAKES'):
                     addl = "_rem"
                 else:
                     addl = ""
 
                 try:
-                   qrow[states[row.state + addl]] += int(row.qty)
+                    qrow[states[row.state + addl]] += int(row.qty)
                 except KeyError:
                     print('Unknown state:', row)
 

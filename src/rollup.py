@@ -35,9 +35,8 @@ def detail_bay():
 
 def staged_or_burned():
     data = dict()
-    with sndb.get_sndb_conn() as db:
-        cursor = db.cursor()
-        cursor.execute("""
+    with sndb.SndbConnection() as db:
+        db.cursor.execute("""
             SELECT
                 Location AS loc,
                 PrimeCode AS mm,
@@ -49,7 +48,7 @@ def staged_or_burned():
                 Location='XPARTS'
         """)
 
-        for row in cursor.fetchall():
+        for row in db.cursor.fetchall():
             key = "{}_{}_{}".format(row.loc, row.mm, row.wbs)
             if key not in data:
                 data[key] = [row.loc, row.mm, row.wbs, 0]
@@ -71,11 +70,9 @@ def zfill_loc(loc):
 def pull_locs(locs):
     data = dict()
 
-    with sndb.get_sndb_conn() as db:
-        cursor = db.cursor()
-
+    with sndb.SndbConnection() as db:
         for loc in locs:
-            cursor.execute("""
+            db.cursor.execute("""
                 SELECT
                     Location AS loc,
                     PrimeCode AS mm,
@@ -90,7 +87,7 @@ def pull_locs(locs):
                     SheetName NOT LIKE 'W%'
             """, loc)
 
-            for row in cursor.fetchall():
+            for row in db.cursor.fetchall():
                 key = "{}_{}_{}".format(row.loc, row.mm, row.wbs)
                 if key not in data:
                     data[key] = [row.loc, row.mm, row.wbs, 0, row.uom]
@@ -119,7 +116,7 @@ def dump_to_xl(datasets):
 def do_compare():
     wb = xlwings.books.active
     xlwings.books["export.XLSX"].sheets[0].copy(after=wb.sheets[-1], name="SAP")
-    
+
     sheet = wb.sheets["SAP"]
 
     quantifiers = wb.sheets["SigmaNest"].range("A2:C2").expand('down').value

@@ -1,13 +1,11 @@
 
 from lib import sndb
 from lib import printer
-from tabulate import tabulate
 
 
 def get_burned(as_csv=False):
-    with sndb.get_sndb_conn() as db:
-        cursor = db.cursor()
-        cursor.execute("""
+    with sndb.SndbConnection() as db:
+        db.cursor.execute("""
             SELECT TOP 10
                 CompletedDateTime AS Timestamp,
                 ProgramName AS Program,
@@ -18,7 +16,7 @@ def get_burned(as_csv=False):
             ORDER BY CompletedDateTime DESC
         """)
 
-        res=sndb.collect_table_data(cursor)
+        res = db.collect_table_data()
         printer.print_to_source(res, as_csv)
 
 
