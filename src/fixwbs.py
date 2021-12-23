@@ -1,6 +1,7 @@
 
-import pyodbc
 import pandas
+
+from lib import sndb
 
 
 CS = "DRIVER={SQL Server};SERVER=HIIWINBL18;DATABASE=SNDBase91;UID=SNUser;PWD=BestNest1445"
@@ -27,17 +28,17 @@ def sqlFormat(df, columns):
     return df.filter(items=columns).values.tolist()
 
 
-with pyodbc.connect(CS) as db:
+with sndb.SndbConnection() as db:
     importedJobs = pandas.read_sql_query(
         """
             SELECT DISTINCT LEFT(PartName, 8) AS job, Shipment AS shipment
             FROM SAPPartWBS
-        """, con=db)
+        """, con=db.connection)
     importedParts = pandas.read_sql_query(
         """
             SELECT PartName AS part, WBS AS wbs
             FROM SAPPartWBS
-        """, con=db)
+        """, con=db.connection)
 
     # read only HEADER columns
     xl = pandas.read_excel(EXPORT)[XL_HEADER.keys()]
@@ -66,12 +67,9 @@ with pyodbc.connect(CS) as db:
     additions = merged[merged['_merge'] == 'left_only']  # items in SAP only
 
     # update database
-    cursor = db.cursor()
-    # cursor.fast_executemany = True
-
     print("SNDBase91 :: SAPPartWBS [Updating Existing...]")
-    cursor.execute("UPDATE SAPPartWBS SET QtyConf=QtyReq")
-    cursor.executemany(
+    db.cursor.execute("UPDATE SAPPartWBS SET QtyConf=QtyReq")
+    db.cursor.executemany(
         """
             UPDATE SAPPartWBS SET QtyConf=QtyReq-?
             WHERE PartName=? AND WBS=?
@@ -81,7 +79,7 @@ with pyodbc.connect(CS) as db:
 
     if not additions.empty:
         print("SNDBase91 :: SAPPartWBS [Adding New...]")
-        cursor.executemany(
+        db.cursor.executemany(
             """
                 INSERT INTO SAPPartWBS (PartName, WBS, QtyReq, Shipment)
                 VALUES (?, ?, ?, ?)
@@ -89,4 +87,4 @@ with pyodbc.connect(CS) as db:
             sqlFormat(additions, columns=["part", "wbs", "qty", "shipment"])
         )
 
-    cursor.commit()
+    db.cursor.commit()
