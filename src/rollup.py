@@ -1,7 +1,10 @@
 
-from lib import sndb
 import xlwings
 
+from lib import sndb
+from lib import printer
+
+from argparse import ArgumentParser
 from re import compile as regex
 
 LOCATION_RE = regex(r'([A-Za-z])(\d+)')
@@ -133,5 +136,46 @@ def do_compare():
     sheet.autofit()
 
 
+def show_part(part, as_csv=False):
+    with sndb.SndbConnection(func="wbsmap") as db:
+        db.cursor.execute("""
+            SELECT * FROM SAPPartWBS
+            WHERE PartName=?
+        """, part)
+
+        data = db.collect_table_data()
+
+    printer.print_to_source(data)
+
+
+def get_last_10_burned(as_csv=False):
+    with sndb.SndbConnection() as db:
+        db.cursor.execute("""
+            SELECT TOP 10
+                CompletedDateTime AS Timestamp,
+                ProgramName AS Program,
+                SheetName AS Sheet,
+                MachineName AS Machine
+            FROM CompletedProgram
+            WHERE MachineName NOT LIKE 'Plant_3_%'
+            ORDER BY CompletedDateTime DESC
+        """)
+
+        res = db.collect_table_data()
+        printer.print_to_source(res, as_csv)
+
+
 if __name__ == "__main__":
-    main()
+    parser = ArgumentParser()
+    parser.add_argument("--csv", action="store_true", help="Return as csv output")
+    parser.add_argument("--part", help="part to find wbs map for")
+    parser.add_argument("--last", action='store_true', help="part to find wbs map for")
+    args = parser.parse_args()
+
+    if args.part:
+        show_part(args.part, as_csv=args.csv)
+    elif args.last:
+        get_last_10_burned(as_csv=args.csv)
+
+    else:
+        main()
