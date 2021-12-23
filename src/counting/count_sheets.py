@@ -95,15 +95,14 @@ def validate_loc(loc):
 
 def create_count_sheet(location, fail_silent=False):
     sheets = {}
-    with sndb.get_sndb_conn() as db:
-        cursor = db.cursor()
-        cursor.execute("""
+    with sndb.SndbConnection() as db:
+        db.cursor.execute("""
             SELECT * FROM Stock
             WHERE Location=?
             AND SheetName NOT LIKE 'W%'
         """, location)
 
-        for row in cursor.fetchall():
+        for row in db.cursor.fetchall():
             sheet = Sheet(row)
 
             if sheet.is_remnant:
