@@ -4,10 +4,7 @@ import pandas
 from lib import sndb
 
 
-CS = "DRIVER={SQL Server};SERVER=HIIWINBL18;DATABASE=SNDBase91;UID=SNUser;PWD=BestNest1445"
-
 EXPORT = r"C:\Users\PMiller1\Documents\SAP\SAP GUI\export.XLSX"
-# EXPORT = "/c/Users/PMiller1/Documents/SAP/SAP GUI/export.XLSX"
 
 XL_HEADER = {
     "Material Number": "part",
@@ -52,15 +49,13 @@ with sndb.SndbConnection() as db:
     df['job'] = df['part'].str.slice(stop=8)    # add job column
 
     # reduce to items from imported Job-Shipment pairs
-    merged = df.merge(importedJobs, how='left', on=[
-                      'job', 'shipment'], indicator=True)
+    merged = df.merge(importedJobs, how='left', on=['job', 'shipment'], indicator=True)
     imported = merged[merged['_merge'] == 'both'].copy()
 
     # merge imported with database Part-WBS pairs
     # delete _merge from previous
     imported.drop('_merge', axis=1, inplace=True)
-    merged = imported.merge(importedParts, how='left', on=[
-                            'part', 'wbs'], indicator=True)
+    merged = imported.merge(importedParts, how='left', on=['part', 'wbs'], indicator=True)
 
     # items in SAP & Database
     updates = merged[merged['_merge'] == 'both']
