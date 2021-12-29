@@ -23,8 +23,12 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("--csv", action="store_true", help="Return as csv output")
     parser.add_argument("--matl", action="store_true", help="Force query as material")
+    parser.add_argument("--sql", help="Value to query")
     parser.add_argument("part", nargs="?", default=None)
     args = parser.parse_args()
+
+    if args.sql:
+        return query_sql(args.sql)
 
     val = args.part
 
@@ -59,9 +63,19 @@ def get_query_type(val, force_matl):
     for pattern, name in REGEX_MAP:
         if re.match(pattern, val):
             return name
-            break
 
     return "part"
+
+
+def query_sql():
+    sql = input("\n\tSQL> ")
+    if not sql:
+        return
+
+    with SndbConnection(func="SQL Statement") as db:
+        db.execute(sql)
+
+        return printer.print_to_source(db.collect_table_data())
 
 
 if __name__ == "__main__":
