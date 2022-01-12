@@ -23,23 +23,58 @@ BASE_SAP_DATA_FILES = r"\\hssieng\SNData\SimTrans\SAP Data Files"
 
 class SheetParser:
 
-    def __init__(self, header_data=None, sheet=None):
+    def __init__(self, sheet=None):
 
-        self.header = None
-        self.sheet = sheet
+        self._header = None
+        self._sheet = None
 
-        if header_data:
-            self.parse_header(header_data)
-        elif self.sheet:
+        if sheet:
+            self.set_sheet(sheet)
+
+    def set_sheet(self, sheet):
+
+        if sheet is None:
+            return
+        
+        elif type(sheet) is xlwings.Sheet:
+            self._sheet = sheet
+
+        elif type(sheet) in (str, int):
+            self._sheet = xlwings.books.active.sheets[sheet]
+
+        else:
+            raise TypeError("sheet must be an xlwings sheet, string or integer")
+
+    @property
+    def header(self):
+
+        if self._header is None:
             self.parse_header()
+
+        return self._header
+
+    @property
+    def sheet(self):
+        """
+        returns sheet if set, otherwise active sheet
+
+        this allows operation on active sheet without setting the stored sheet
+        """
+        return self._sheet or xlwings.books.active.sheets.active
 
     @property
     def max_col(self):
+
         return max(self.header.__dict__.values())
+
+    @property
+    def last_row(self):
+
+        return self.sheet.range((2, self.header.matl + 1)).end('down').row
 
     def parse_header(self, row=None):
 
-        self.header = SimpleNamespace()
+        self._header = SimpleNamespace()
 
         if row is None:
             row = self.sheet.range("A1").expand('right').value
@@ -55,6 +90,8 @@ class SheetParser:
                 if item in v:
                     setattr(self.header, k, i)
 
+        self._header_parsed = True
+
     def parse_row(self, row):
         res = SimpleNamespace()
 
@@ -69,14 +106,13 @@ class SheetParser:
             convenience method to parse entire sheet
         """
 
-        if sheet is None:
-            sheet = self.sheet or xlwings.books.active.sheets.active
+        if sheet:
+            self.set_sheet(sheet)
 
         if self.header is None:
             self.parse_header()
 
-        last_row = sheet.range((2, self.header.matl + 1)).end('down').row
-        rng = sheet.range((2, 1), (last_row, self.max_col + 1)).value
+        rng = self.sheet.range((2, 1), (self.last_row, self.max_col + 1)).value
 
         for row in rng:
             yield self.parse_row(row)
