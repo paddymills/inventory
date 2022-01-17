@@ -8,9 +8,9 @@ from os import path
 
 REGEX_MAP = [
     # Regex Pattern                                         name
-    (r"\d{7}[A-Z]\d{0,2}-\d{2,5}[A-Z]?",                    "matl"),
-    (r"(?:9-)?(?:HPS)?50W?(?:/50W)?[TF]?\d?-\d{4}[A-Z]?",   "matl"),
-    (r"[A-Z]{1,2}\d{5,}(?:-\d)?",                           "sheet"),
+    (r"\d{7}[A-Z]\d{0,2}-\d{5}[A-Z]?",                    "matl"),
+    (r"(9-)?(HPS)?[57]0W?(/50W)?[TF]?\d?-\d{4}[A-Z]?",    "matl"),
+    (r"[A-Z]{1,2}\d{5,}(-\d)?",                           "sheet"),
 ]
 
 REPLACEMENTS = [
@@ -76,6 +76,43 @@ def query_sql():
         db.execute(sql)
 
         return printer.print_to_source(db.collect_table_data())
+
+
+def test_regex():
+    should_pass = [
+        # PROJECT
+        '1200123A-07001',
+        '1200123A01-07001',
+        '1200123A-07001A',
+        '1200123A05-07001A',
+
+        # STOCK
+        '50-0108',
+        '50-0108A',
+        '50W-0108',
+        '50W-0108A',
+        '9-50-0108',
+        '9-50F2-0108',
+        '9-50W-0108',
+        '9-HPS50W-0108',
+        '9-HPS70WF3-0108',
+
+        # SHEET
+    ]
+
+    proj, stock, sheet = [r[0] for r in REGEX_MAP]
+
+    for test in should_pass:
+        if proj.match(test):
+            result = "Matches project"
+        elif stock.match(test):
+            result = "Matches Stock"
+        elif sheet.match(test):
+            result = "Matches sheet"
+        else:
+            result = "Does not match"
+
+        print(test, "::", result)
 
 
 if __name__ == "__main__":
