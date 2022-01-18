@@ -2,7 +2,7 @@ import xlwings
 from os import path
 
 from lib import parsers
-from lib.sndb import SndbConnection
+from lib.db import SndbConnection
 
 from re import compile as regex
 from collections import defaultdict

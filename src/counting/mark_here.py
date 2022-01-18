@@ -1,5 +1,5 @@
 
-from lib import sndb
+from lib import db
 import xlwings
 
 DATA_4_STR = '10.18.21'
@@ -12,7 +12,7 @@ def main():
     sheet_col = sheet.range((1, 2)).expand('right').value.index('Sheet Name') + 2
 
     update_count = 0
-    with sndb.SndbConnection() as db:
+    with db.SndbConnection() as db:
         for sheet_name in sheet.range((2, sheet_col)).expand('down').value:
             db.cursor.execute("""
                 SELECT SheetName, Location, PrimeCode

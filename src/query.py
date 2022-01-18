@@ -1,7 +1,7 @@
 
 import re
 
-from lib.sndb import SndbConnection
+from lib.db import SndbConnection
 from lib import printer
 from argparse import ArgumentParser
 from os import path

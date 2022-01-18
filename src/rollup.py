@@ -1,7 +1,7 @@
 
 import xlwings
 
-from lib import sndb
+from lib import db
 from lib import printer
 
 from argparse import ArgumentParser
@@ -38,7 +38,7 @@ def detail_bay():
 
 def staged_or_burned():
     data = dict()
-    with sndb.SndbConnection() as db:
+    with db.SndbConnection() as db:
         db.cursor.execute("""
             SELECT
                 Location AS loc,
@@ -73,7 +73,7 @@ def zfill_loc(loc):
 def pull_locs(locs):
     data = dict()
 
-    with sndb.SndbConnection() as db:
+    with db.SndbConnection() as db:
         for loc in locs:
             db.cursor.execute("""
                 SELECT
@@ -137,7 +137,7 @@ def do_compare():
 
 
 def show_part(part, as_csv=False):
-    with sndb.SndbConnection(func="wbsmap") as db:
+    with db.SndbConnection(func="wbsmap") as db:
         db.cursor.execute("""
             SELECT * FROM SAPPartWBS
             WHERE PartName=?
@@ -149,7 +149,7 @@ def show_part(part, as_csv=False):
 
 
 def get_last_10_burned(as_csv=False):
-    with sndb.SndbConnection() as db:
+    with db.SndbConnection() as db:
         db.cursor.execute("""
             SELECT TOP 10
                 CompletedDateTime AS Timestamp,

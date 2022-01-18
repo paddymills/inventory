@@ -1,7 +1,7 @@
 
 import pandas
 
-from lib import sndb
+from lib import db
 
 
 EXPORT = r"C:\Users\PMiller1\Documents\SAP\SAP GUI\export.XLSX"
@@ -25,7 +25,7 @@ def sqlFormat(df, columns):
     return df.filter(items=columns).values.tolist()
 
 
-with sndb.SndbConnection() as db:
+with db.SndbConnection() as db:
     importedJobs = pandas.read_sql_query(
         """
             SELECT DISTINCT LEFT(PartName, 8) AS job, Shipment AS shipment

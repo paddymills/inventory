@@ -1,6 +1,6 @@
 
 from lib import parsers
-from lib import sndb
+from lib import db
 from lib import printer
 
 from argparse import ArgumentParser
@@ -17,7 +17,7 @@ def main(as_csv=False):
         elif d.type == "PR":
             parts[d.part][1] += d.qty
 
-    with sndb.SndbConnection() as db:
+    with db.SndbConnection() as db:
         states = dict(
             required=1,
             nested=2,
