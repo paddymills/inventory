@@ -38,8 +38,8 @@ def detail_bay():
 
 def staged_or_burned():
     data = dict()
-    with db.SndbConnection() as db:
-        db.cursor.execute("""
+    with db.SndbConnection() as conn:
+        conn.cursor.execute("""
             SELECT
                 Location AS loc,
                 PrimeCode AS mm,
@@ -73,9 +73,9 @@ def zfill_loc(loc):
 def pull_locs(locs):
     data = dict()
 
-    with db.SndbConnection() as db:
+    with db.SndbConnection() as conn:
         for loc in locs:
-            db.cursor.execute("""
+            conn.cursor.execute("""
                 SELECT
                     Location AS loc,
                     PrimeCode AS mm,
@@ -90,7 +90,7 @@ def pull_locs(locs):
                     SheetName NOT LIKE 'W%'
             """, loc)
 
-            for row in db.cursor.fetchall():
+            for row in conn.cursor.fetchall():
                 key = "{}_{}_{}".format(row.loc, row.mm, row.wbs)
                 if key not in data:
                     data[key] = [row.loc, row.mm, row.wbs, 0, row.uom]
@@ -137,20 +137,20 @@ def do_compare():
 
 
 def show_part(part, as_csv=False):
-    with db.SndbConnection(func="wbsmap") as db:
-        db.cursor.execute("""
+    with db.SndbConnection(func="wbsmap") as conn:
+        conn.cursor.execute("""
             SELECT * FROM SAPPartWBS
             WHERE PartName=?
         """, part)
 
-        data = db.collect_table_data()
+        data = conn.collect_table_data()
 
     printer.print_to_source(data)
 
 
 def get_last_10_burned(as_csv=False):
-    with db.SndbConnection() as db:
-        db.cursor.execute("""
+    with db.SndbConnection() as conn:
+        conn.cursor.execute("""
             SELECT TOP 10
                 CompletedDateTime AS Timestamp,
                 ProgramName AS Program,
@@ -161,7 +161,7 @@ def get_last_10_burned(as_csv=False):
             ORDER BY CompletedDateTime DESC
         """)
 
-        res = db.collect_table_data()
+        res = conn.collect_table_data()
         printer.print_to_source(res, as_csv)
 
 

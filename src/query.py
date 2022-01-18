@@ -72,8 +72,8 @@ def query_sql():
     if not sql:
         return
 
-    with SndbConnection(func="SQL Statement") as db:
-        db.execute(sql)
+    with SndbConnection(func="SQL Statement") as conn:
+        conn.execute(sql)
 
         return printer.print_to_source(db.collect_table_data())
 

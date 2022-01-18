@@ -17,7 +17,7 @@ def main(as_csv=False):
         elif d.type == "PR":
             parts[d.part][1] += d.qty
 
-    with db.SndbConnection() as db:
+    with db.SndbConnection() as conn:
         states = dict(
             required=1,
             nested=2,
@@ -29,7 +29,7 @@ def main(as_csv=False):
         for part, _qtys in tqdm(parts.items()):
             qty_cnf, qty_planned = _qtys
 
-            db.cursor.execute("""
+            conn.cursor.execute("""
                 SELECT *
                 FROM (
                     SELECT
@@ -77,7 +77,7 @@ def main(as_csv=False):
             """, "%" + part[4:].replace("-", "%", 1))
 
             qrow = [part, *[0] * len(states), int(qty_planned), int(qty_cnf)]
-            for row in db.cursor.fetchall():
+            for row in conn.cursor.fetchall():
                 if row.workorder in ('EXTRAS', 'REMAKES'):
                     addl = "_rem"
                 else:
