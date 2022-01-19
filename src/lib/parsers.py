@@ -3,6 +3,7 @@ import xlwings
 
 from multiprocessing import Pool
 from os import path, listdir
+from re import compile as regex
 from types import SimpleNamespace
 from tqdm import tqdm
 
@@ -19,6 +20,28 @@ aliases.plant = ("Plant")
 aliases.order = ("Order")
 
 BASE_SAP_DATA_FILES = r"\\hssieng\SNData\SimTrans\SAP Data Files"
+
+SCAN_PART = regex(r"(\d{3})([a-zA-Z])-\w+-\w+-(\w+)")
+DATA_FILE_JOB = regex(r"S-(\d{7})")
+
+
+def data_file_folder(folder_name):
+    return path.join(BASE_SAP_DATA_FILES, folder_name)
+
+
+def part_name(_part, _job):
+    scan_match = SCAN_PART.match(_part)
+    job_match = DATA_FILE_JOB.match(_job)
+    if not (scan_match and job_match):
+        return _part
+
+    job_end, structure, part = scan_match.groups()
+    job_without_structure = job_match.group(1)
+
+    if not job_without_structure.endswith(job_end):
+        return _part
+
+    return "{}{}-{}".format(job_without_structure, structure, part)
 
 
 class SheetParser:
@@ -121,18 +144,18 @@ class SheetParser:
 class CnfFileParser:
 
     def __init__(self, processed_only=False):
-        self.ipart = SimpleNamespace(matl=0, qty=4, wbs=2, plant=11)
+        self.ipart = SimpleNamespace(matl=0, qty=4, wbs=2, plant=11, job=1)
         self.imatl = SimpleNamespace(matl=6, qty=8, loc=10, wbs=7, plant=11)
 
         self.dirs = [
-            path.join(BASE_SAP_DATA_FILES, "Processed"),
+            data_file_folder("Processed"),
         ]
 
         if not processed_only:
-            self.dirs += [
-                path.join(BASE_SAP_DATA_FILES, "deleted files"),
-                path.join(BASE_SAP_DATA_FILES, "_temp"),
-            ]
+            for d in ('deleted files', '_temp'):
+                _dir = data_file_folder(d)
+                if path.exists(_dir):
+                    self.dirs.append(_dir)
 
     @property
     def files(self):
@@ -147,7 +170,8 @@ class CnfFileParser:
             for processed_file in Pool().imap(self.file_worker, self.files):
                 pbar.update()
                 for line in processed_file:
-                    if line[self.ipart.matl].upper() in parts:
+                    part = part_name(*line[self.ipart.matl:self.ipart.job+1])
+                    if part in parts:
                         prod_data.append(line)
 
         return prod_data
