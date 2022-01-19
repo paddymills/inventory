@@ -1,5 +1,6 @@
 
 from lib import db
+from lib import part
 from lib import printer
 
 from argparse import ArgumentParser
@@ -17,8 +18,11 @@ def main():
             args.job, args.shipment
         )
 
-        res = conn.collect_table_data()
-        printer.print_to_source(res, as_csv=args.csv) 
+        for r in conn.cursor.fetchall():
+            p = part.Part(r)
+            if p.type != "PL":
+                continue
+            print(p)
 
 
 if __name__ == "__main__":
