@@ -75,7 +75,7 @@ def query_sql():
     with SndbConnection(func="SQL Statement") as conn:
         conn.execute(sql)
 
-        return printer.print_to_source(db.collect_table_data())
+        return printer.print_to_source(conn.collect_table_data())
 
 
 def test_regex():
