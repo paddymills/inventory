@@ -30,21 +30,20 @@ class QueryManager:
         self.args = self.parser.parse_args()
 
         if self.args.sql:
-            return self.query_sql(self.args.sql)
-
-        val = self.args.part
+            self.query_sql(self.args.sql)
 
         # ask for value if not given
-        if self.args.part:
-            return self.run(self.args.part)
+        elif self.args.part:
+            self.run(self.args.part)
 
-        while True:
-            val = input("\n>: ")
+        else:
+            while True:
+                val = input("\n> ")
 
-            if not val:
-                return self
+                if not val:
+                    break
 
-            self.run(val)
+                self.run(val)
 
     def run(self, val):
         # uppercase and replace wildcards
@@ -64,9 +63,6 @@ class QueryManager:
 
             printer.print_to_source(sql_data, self.args.csv)
 
-
-        return self
-
     def get_query_type(self, val, force_matl):
         if force_matl:
             return "matl"
@@ -81,7 +77,7 @@ class QueryManager:
         with SndbConnection(func="SQL Statement") as conn:
             conn.execute(sql)
 
-            return printer.print_to_source(conn.collect_table_data())
+            printer.print_to_source(conn.collect_table_data())
 
 
 def test_regex():
