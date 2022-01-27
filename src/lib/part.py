@@ -15,9 +15,11 @@ aliases = dict(
     grade   = ("Grade",),
     test    = ("ImpactTest",),
     remark  = ("Remark",),
+    item    = ("Item",),
+    dwg     = ("DwgNo",),
 )
 
-STOCK_GRADES = regex(r"\w+-50W?(T2)?")
+STOCK_GRADES = regex(r"^\w+-(50|345)W?(T|T2)?$")
 STOCK_THK = [
     0.25,
     0.375,
@@ -41,12 +43,7 @@ def float_display(f, display_feet=False, force_zero=False):
     if frac == 0:
         frac = ''
 
-    if '' in (whole, frac):
-        spacer = ''
-    else:
-        spacer = ' '
-
-    return "{}{}{}".format(whole, spacer, frac)
+    return "{} {}".format(whole, frac).strip()
 
 
 class Part:
@@ -98,9 +95,11 @@ class Part:
         _wid = float_display(self.wid)
         _len = float_display(self.len, display_feet=True)
 
-        # return "Part<{}: {} x {} x {} [{}]>".format(self.mark, _thk, _wid, _len, self.matl_grade)
+        return "Part<{}: {} x {} x {} [{}]>".format(self.mark, _thk, _wid, _len, self.matl_grade)
 
-        return "Part<{}: {} [{}]>".format(self.mark, self.desc, self.matl_grade)
+    def xml_format(self):
+        return (self.mark, self.qty, self.thk, self.wid, self.len, self.matl_grade_cvn,
+                self.item, self.dwg, None, None, None, None, self.remark, float_display(self.len * self.qty, display_feet=True))
 
     def parse_data(self, data):
         if type(data) is dict:
