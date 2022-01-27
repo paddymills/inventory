@@ -19,63 +19,69 @@ REPLACEMENTS = [
 ]
 
 
-def main():
-    parser = ArgumentParser()
-    parser.add_argument("--csv", action="store_true", help="Return as csv output")
-    parser.add_argument("--matl", action="store_true", help="Force query as material")
-    parser.add_argument("--sql", help="Value to query")
-    parser.add_argument("part", nargs="?", default=None)
-    args = parser.parse_args()
+class QueryManager:
 
-    if args.sql:
-        return query_sql(args.sql)
+    def __init__(self):
+        self.parser = ArgumentParser()
+        self.parser.add_argument("--csv", action="store_true", help="Return as csv output")
+        self.parser.add_argument("--matl", action="store_true", help="Force query as material")
+        self.parser.add_argument("--sql", help="Value to query")
+        self.parser.add_argument("part", nargs="?", default=None)
+        self.args = self.parser.parse_args()
 
-    val = args.part
+        if self.args.sql:
+            return self.query_sql(self.args.sql)
 
-    # ask for value if not given
-    if not val:
-        val = input("\n\tIdentifier: ")
-        if not val:
-            return
+        val = self.args.part
 
-    # uppercase and replace wildcards
-    val = val.upper()
-    for _find, _replace in REPLACEMENTS:
-        val = val.replace(_find, _replace)
+        # ask for value if not given
+        if self.args.part:
+            return self.run(self.args.part)
 
-    query = get_query_type(val, args.matl)
+        while True:
+            val = input("\n>: ")
 
-    with SndbConnection(func=query) as db:
-        if query == "part":
-            val = "%" + val.replace('-', '%') + "%"
+            if not val:
+                return self
 
-        sql_file = path.join(path.dirname(__file__), "sql", "query_{}.sql".format(query))
-        db.execute_sql_file(sql_file, [val, val])
-        sql_data = db.collect_table_data()
+            self.run(val)
 
-        printer.print_to_source(sql_data, args.csv)
+    def run(self, val):
+        # uppercase and replace wildcards
+        val = val.upper()
+        for _find, _replace in REPLACEMENTS:
+            val = val.replace(_find, _replace)
 
+        query = self.get_query_type(val, self.args.matl)
 
-def get_query_type(val, force_matl):
-    if force_matl:
-        return "matl"
+        with SndbConnection(func=query) as db:
+            if query == "part":
+                val = "%" + val.replace('-', '%') + "%"
 
-    for pattern, name in REGEX_MAP:
-        if re.match(pattern, val):
-            return name
+            sql_file = path.join(path.dirname(__file__), "sql", "query_{}.sql".format(query))
+            db.execute_sql_file(sql_file, [val, val])
+            sql_data = db.collect_table_data()
 
-    return "part"
+            printer.print_to_source(sql_data, self.args.csv)
 
 
-def query_sql():
-    sql = input("\n\tSQL> ")
-    if not sql:
-        return
+        return self
 
-    with SndbConnection(func="SQL Statement") as conn:
-        conn.execute(sql)
+    def get_query_type(self, val, force_matl):
+        if force_matl:
+            return "matl"
 
-        return printer.print_to_source(conn.collect_table_data())
+        for pattern, name in REGEX_MAP:
+            if re.match(pattern, val):
+                return name
+
+        return "part"
+
+    def query_sql(self, sql):
+        with SndbConnection(func="SQL Statement") as conn:
+            conn.execute(sql)
+
+            return printer.print_to_source(conn.collect_table_data())
 
 
 def test_regex():
@@ -116,4 +122,4 @@ def test_regex():
 
 
 if __name__ == "__main__":
-    main()
+    QueryManager()
