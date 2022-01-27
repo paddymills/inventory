@@ -2,6 +2,7 @@
 from argparse import ArgumentParser
 from datetime import datetime
 from os import path, listdir
+from re import compile as regex
 from tqdm import tqdm
 
 base = r"\\hssieng\SNData\SimTrans\SAP Data Files"
@@ -9,7 +10,7 @@ timestamp = "Production_{:%Y%m%d%H%M%S}.ready".format(datetime.now())
 output_filename = path.join(base, "other", timestamp)
 
 NUM_FILES = 200
-
+WBS_RE = regex(r"(?:[SD]-)?(?:\d{7}?-)?(\d{5})")
 
 class FailuresFinder:
 
@@ -35,7 +36,7 @@ class FailuresFinder:
         return self.from_input()
 
     def from_input(self):
-        print("Enter args in order -> (job, mark, program, wbs_id)")
+        print("Enter args in order -> job mark program wbs_id")
         print("===================================================")
 
         args = [None] * 4
@@ -46,8 +47,12 @@ class FailuresFinder:
 
             temp_args = val.upper().split(" ")
             args = args[:len(args) - len(temp_args)] + temp_args
+            args[-1] = WBS_RE.match(args[-1]).group(1)
 
             self.find_data(*args)
+
+        print("file placed at: {}".format(output_filename))
+        input("press any key to end")
 
     def from_txt(self):
         args = [None] * 4
