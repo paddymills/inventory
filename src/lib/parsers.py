@@ -95,18 +95,12 @@ class SheetParser:
 
         return self.sheet.range((2, self.header.matl + 1)).end('down').row
 
-    def parse_header(self, row=None, range=None):
+    def parse_header(self, row=None):
 
         self._header = SimpleNamespace()
 
         if row is None:
-            if range:
-                if type(range) is str:
-                    range = self.sheet.range(range)
-                row = range.expand('right').value
-
-            else:
-                row = self.sheet.range("A1").expand('right').value
+            row = self.sheet.range("A1").expand('right').value
 
         for i, item in enumerate(row):
             # same as
