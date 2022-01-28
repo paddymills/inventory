@@ -1,7 +1,7 @@
 
 import pandas
 
-from lib import sndb
+from lib import db
 
 
 EXPORT = r"C:\Users\PMiller1\Documents\SAP\SAP GUI\export.XLSX"
@@ -25,17 +25,17 @@ def sqlFormat(df, columns):
     return df.filter(items=columns).values.tolist()
 
 
-with sndb.SndbConnection() as db:
+with db.SndbConnection() as conn:
     importedJobs = pandas.read_sql_query(
         """
             SELECT DISTINCT LEFT(PartName, 8) AS job, Shipment AS shipment
             FROM SAPPartWBS
-        """, con=db.connection)
+        """, con=conn.connection)
     importedParts = pandas.read_sql_query(
         """
             SELECT PartName AS part, WBS AS wbs
             FROM SAPPartWBS
-        """, con=db.connection)
+        """, con=conn.connection)
 
     # read only HEADER columns
     xl = pandas.read_excel(EXPORT)[XL_HEADER.keys()]
@@ -63,8 +63,8 @@ with sndb.SndbConnection() as db:
 
     # update database
     print("SNDBase91 :: SAPPartWBS [Updating Existing...]")
-    db.cursor.execute("UPDATE SAPPartWBS SET QtyConf=QtyReq")
-    db.cursor.executemany(
+    conn.cursor.execute("UPDATE SAPPartWBS SET QtyConf=QtyReq")
+    conn.cursor.executemany(
         """
             UPDATE SAPPartWBS SET QtyConf=QtyReq-?
             WHERE PartName=? AND WBS=?
@@ -74,7 +74,7 @@ with sndb.SndbConnection() as db:
 
     if not additions.empty:
         print("SNDBase91 :: SAPPartWBS [Adding New...]")
-        db.cursor.executemany(
+        conn.cursor.executemany(
             """
                 INSERT INTO SAPPartWBS (PartName, WBS, QtyReq, Shipment)
                 VALUES (?, ?, ?, ?)
@@ -82,4 +82,4 @@ with sndb.SndbConnection() as db:
             sqlFormat(additions, columns=["part", "wbs", "qty", "shipment"])
         )
 
-    db.cursor.commit()
+    conn.cursor.commit()

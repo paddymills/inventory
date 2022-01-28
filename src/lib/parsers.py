@@ -1,9 +1,9 @@
 
-import re
 import xlwings
 
 from multiprocessing import Pool
 from os import path, listdir
+from re import compile as regex
 from types import SimpleNamespace
 from tqdm import tqdm
 
@@ -21,28 +21,83 @@ aliases.order = ("Order")
 
 BASE_SAP_DATA_FILES = r"\\hssieng\SNData\SimTrans\SAP Data Files"
 
-SCAN_PATTERN = re.compile(r"\d{3}[A-Z]-\w+-\w+-(\w+)", re.IGNORECASE)
+SCAN_PART = regex(r"(\d{3})([a-zA-Z])-\w+-\w+-(\w+)")
+DATA_FILE_JOB = regex(r"S-(\d{7})")
+
+
+def data_file_folder(folder_name):
+    return path.join(BASE_SAP_DATA_FILES, folder_name)
+
+
+def part_name(_part, _job):
+    scan_match = SCAN_PART.match(_part)
+    job_match = DATA_FILE_JOB.match(_job)
+    if not (scan_match and job_match):
+        return _part
+
+    job_end, structure, part = scan_match.groups()
+    job_without_structure = job_match.group(1)
+
+    if not job_without_structure.endswith(job_end):
+        return _part
+
+    return "{}{}-{}".format(job_without_structure, structure, part)
 
 
 class SheetParser:
 
-    def __init__(self, header_data=None, sheet=None):
+    def __init__(self, sheet=None):
 
-        self.header = None
-        self.sheet = sheet or xlwings.books.active.sheets.active
+        self._header = None
+        self._sheet = None
 
-        if header_data:
-            self.parse_header(header_data)
+        if sheet:
+            self.set_sheet(sheet)
+
+    def set_sheet(self, sheet):
+
+        if sheet is None:
+            return
+
+        elif type(sheet) is xlwings.Sheet:
+            self._sheet = sheet
+
+        elif type(sheet) in (str, int):
+            self._sheet = xlwings.books.active.sheets[sheet]
+
         else:
+            raise TypeError("sheet must be an xlwings sheet, string or integer")
+
+    @property
+    def header(self):
+
+        if self._header is None:
             self.parse_header()
+
+        return self._header
+
+    @property
+    def sheet(self):
+        """
+        returns sheet if set, otherwise active sheet
+
+        this allows operation on active sheet without setting the stored sheet
+        """
+        return self._sheet or xlwings.books.active.sheets.active
 
     @property
     def max_col(self):
+
         return max(self.header.__dict__.values())
+
+    @property
+    def last_row(self):
+
+        return self.sheet.range((2, self.header.matl + 1)).end('down').row
 
     def parse_header(self, row=None, range=None):
 
-        self.header = SimpleNamespace()
+        self._header = SimpleNamespace()
 
         if row is None:
             if range:
@@ -64,6 +119,8 @@ class SheetParser:
                 if item in v:
                     setattr(self.header, k, i)
 
+        self._header_parsed = True
+
     def parse_row(self, row):
         res = SimpleNamespace()
 
@@ -78,11 +135,13 @@ class SheetParser:
             convenience method to parse entire sheet
         """
 
-        if sheet is None:
-            sheet = self.sheet or xlwings.books.active.sheets.active
+        if sheet:
+            self.set_sheet(sheet)
 
-        last_row = sheet.range((2, self.header.matl + 1)).end('down').row
-        rng = sheet.range((2, 1), (last_row, self.max_col + 1)).value
+        if self.header is None:
+            self.parse_header()
+
+        rng = self.sheet.range((2, 1), (self.last_row, self.max_col + 1)).value
 
         for row in rng:
             yield self.parse_row(row)
@@ -95,14 +154,14 @@ class CnfFileParser:
         self.imatl = SimpleNamespace(matl=6, qty=8, loc=10, wbs=7, plant=11)
 
         self.dirs = [
-            path.join(BASE_SAP_DATA_FILES, "Processed"),
+            data_file_folder("Processed"),
         ]
 
         if not processed_only:
-            self.dirs += [
-                path.join(BASE_SAP_DATA_FILES, "deleted files"),
-                path.join(BASE_SAP_DATA_FILES, "_temp"),
-            ]
+            for d in ('deleted files', '_temp'):
+                _dir = data_file_folder(d)
+                if path.exists(_dir):
+                    self.dirs.append(_dir)
 
     @property
     def files(self):
@@ -117,12 +176,8 @@ class CnfFileParser:
             for processed_file in Pool().imap(self.file_worker, self.files):
                 pbar.update()
                 for line in processed_file:
-                    # match scan parts and change
-                    match = SCAN_PATTERN.match(line[self.ipart.matl])
-                    if match:
-                        line[self.ipart.matl] = "{}-{}".format(line[self.ipart.job][2:], match.group(1))
-
-                    if line[self.ipart.matl] in parts:
+                    part = part_name(*line[self.ipart.matl:self.ipart.job+1])
+                    if part in parts:
                         prod_data.append(line)
 
         return prod_data

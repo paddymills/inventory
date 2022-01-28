@@ -8,31 +8,30 @@ from string import Template
 SNDB_PRD = "HIIWINBL18"
 SNDB_DEV = "HIIWINBL5"
 
-CONN_STR_TEMPLATE = Template(
-    "DRIVER={$driver};SERVER=$server;UID=$user;PWD=$pwd;DATABASE=$db;")
+CONN_STR_USER_AUTH = Template("DRIVER={$driver};SERVER=$server;UID=$user;PWD=$pwd;DATABASE=$db;")
+CONN_STR_WIN_AUTH = Template("DRIVER={$driver};SERVER=$server;Trusted_connection=yes;")
 
+if len(pyodbc.drivers()) > 0:
+    DEFAULT_DRIVER = pyodbc.drivers()[0]
+else:
+    raise NotImplementedError("No SQL drivers available")
 
-class SndbConnection:
+class DbConnection:
     """
-        pyodbc connection wrapper for sigmanest databases
+        pyodbc connection wrapper for databases
     """
 
-    def __init__(self, dev=False, **kwargs):
+    def __init__(self, use_win_auth=False, **kwargs):
+        if use_win_auth:
+            self.CS_TEMP = CONN_STR_WIN_AUTH
+        else:
+            self.CS_TEMP = CONN_STR_USER_AUTH
+
+        self.driver = DEFAULT_DRIVER
         self.__dict__.update(kwargs)
 
         self._cnxn = None
         self._cur = None
-        self.cs_kwargs = dict(
-            driver="SQL Server",
-            server=SNDB_PRD,
-            db="SNDBase91",
-            user=getenv('SNDB_USER'),
-            pwd=getenv('SNDB_PWD'),
-        )
-        self.cs_kwargs.update(kwargs)
-        if dev:
-            self.cs_kwargs['server'] = SNDB_DEV
-            self.cs_kwargs['db'] = "SNDBaseDev"
 
     def __enter__(self):
         return self
@@ -41,7 +40,7 @@ class SndbConnection:
         self._cnxn.close()
 
     def _make_cnxn(self):
-        self._cnxn = pyodbc.connect(CONN_STR_TEMPLATE.substitute(**self.cs_kwargs))
+        self._cnxn = pyodbc.connect(self.CS_TEMP.substitute(**self.__dict__))
 
     @property
     def connection(self):
@@ -86,3 +85,23 @@ class SndbConnection:
                 return [["values"], ["nothing returned ({})".format(caller)]]
 
         return data
+
+class SndbConnection(DbConnection):
+    """
+        db connection wrapper for SigmaNest databases
+    """
+
+    def __init__(self, dev=False, **kwargs):
+        init_kwargs = dict(
+            server=SNDB_PRD,
+            db="SNDBase91",
+            user=getenv('SNDB_USER'),
+            pwd=getenv('SNDB_PWD'),
+        )
+
+        init_kwargs.update(kwargs)
+        super().__init__(**init_kwargs)
+
+        if dev:
+            self.server = SNDB_DEV
+            self.db = "SNDBaseDev"

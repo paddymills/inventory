@@ -4,7 +4,7 @@ import os
 import sys
 import re
 
-from lib import sndb
+from lib import db
 
 XL_TEMPLATE_FILE = os.path.join(os.path.dirname(__file__), "templates", "template.xlsx")
 
@@ -95,7 +95,7 @@ def validate_loc(loc):
 
 def create_count_sheet(location, fail_silent=False):
     sheets = {}
-    with sndb.SndbConnection() as db:
+    with db.SndbConnection() as db:
         db.cursor.execute("""
             SELECT * FROM Stock
             WHERE Location=?
