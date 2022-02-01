@@ -90,12 +90,16 @@ class Part:
 
         return False
 
+    @property
+    def is_main(self):
+        return self.item.startswith('03') or self.item.startswith('04')
+
     def __repr__(self):
         _thk = float_display(self.thk)
         _wid = float_display(self.wid)
         _len = float_display(self.len, display_feet=True)
 
-        return "Part<{}: {} x {} x {} [{}]>".format(self.mark, _thk, _wid, _len, self.matl_grade)
+        return "Part<{}: {} x {} x {} [{}] [{}]>".format(self.mark, _thk, _wid, _len, self.matl_grade, self.item)
 
     def xml_format(self):
         return (self.mark, self.qty, self.thk, self.wid, self.len, self.matl_grade_cvn,

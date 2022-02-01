@@ -17,6 +17,7 @@ pretty_errors.configure(
 def main():
     parser = ArgumentParser()
     parser.add_argument("--csv", action="store_true", help="Return as csv output")
+    parser.add_argument("--secondary", action="store_true", help="skip main member")
     parser.add_argument("job", nargs="?", default=None)
     parser.add_argument("shipment", nargs="?", default=None)
     args = parser.parse_args()
@@ -34,7 +35,7 @@ def main():
 
         for r in conn.cursor.fetchall():
             p = part.Part(r)
-            if p.type != "PL":
+            if p.type != "PL" or (args.secondary and p.is_main):
                 continue
 
             parts.append(p)
