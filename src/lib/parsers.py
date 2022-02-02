@@ -18,6 +18,7 @@ aliases.loc = ("Storage Location")
 aliases.wbs = ("WBS Element", "Special stock number")
 aliases.plant = ("Plant")
 aliases.order = ("Order")
+aliases.desc = ("Material description")
 
 BASE_SAP_DATA_FILES = r"\\hssieng\SNData\SimTrans\SAP Data Files"
 
@@ -58,6 +59,9 @@ class SheetParser:
 
         if sheet is None:
             return
+
+        elif sheet == 'active':
+            self._sheet = xlwings.books.active.sheets.active
         
         elif type(sheet) is xlwings.Sheet:
             self._sheet = sheet
@@ -95,6 +99,10 @@ class SheetParser:
 
         return self.sheet.range((2, self.header.matl + 1)).end('down').row
 
+    @property
+    def data_rng(self, start_row=2):
+        return self.sheet.range((start_row, 1), (self.last_row, self.max_col + 1))
+
     def parse_header(self, row=None):
 
         self._header = SimpleNamespace()
@@ -124,7 +132,7 @@ class SheetParser:
 
         return res
 
-    def parse_sheet(self, sheet=None):
+    def parse_sheet(self, sheet=None, with_progress=False):
         """
             convenience method to parse entire sheet
         """
@@ -135,10 +143,15 @@ class SheetParser:
         if self.header is None:
             self.parse_header()
 
-        rng = self.sheet.range((2, 1), (self.last_row, self.max_col + 1)).value
+        rng = self.data_rng.value
 
-        for row in rng:
-            yield self.parse_row(row)
+        if with_progress:
+            for row in tqdm(rng, desc='Parsing sheet', total=len(rng)):
+                yield self.parse_row(row)
+
+        else:
+            for row in rng:
+                yield self.parse_row(row)
 
 
 class CnfFileParser:
