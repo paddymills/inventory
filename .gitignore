@@ -17,3 +17,4 @@ venv.bak/
 
 # temp text files
 *.txt
+*.ready
