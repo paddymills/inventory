@@ -55,7 +55,11 @@ class Part:
     @property
     def matl_grade(self):
         if self.spec == 'A240 Type 304':
-            return 'A240-304'
+            self.spec = 'A240'
+            self.grade = '304'
+        if self.spec == 'A606 TYPE 4':
+            self.spec = 'A606'
+            self.grade = 'TYPE4'
 
         if "HPS" in self.grade:
             zone = '3'
@@ -72,20 +76,41 @@ class Part:
 
     @property
     def matl_grade_cvn(self):
-        if self.test:
+        if self.test or self.spec in ('A240', 'A606'):
             return self.matl_grade
 
         return self.matl_grade + "T2"
 
-    @property
-    def for_prenest(self):
+    def for_prenest(self, prenest_type='all'):
+        # exclude
+        #   - secondary from main prenest
+        #   - main from secondary prenest
+        if self.is_main:
+            if prenest_type == 'secondary':
+                return False
+        else:  # is secondary
+            if prenest_type == 'main':
+                return False
+
+        # exclude shapes
+        if self.type not in ("PL", "SHT"):
+            return False
+
+        # not compatible with 50/50WT2
         if not STOCK_GRADES.match(self.matl_grade):
             return True
-        if self.thk not in STOCK_THK:
-            return True
+
+        # larger than stock plate size
         if self.wid > 95.0:
             return True
+        if self.thk <= 0.375 and self.len > 120.0:
+            return True
         if self.len > 240.0:
+            return True
+
+        if self.thk not in STOCK_THK:
+            if self.gets_thk_mill and self.thk <= 1.0:
+                return False
             return True
 
         return False
@@ -93,6 +118,17 @@ class Part:
     @property
     def is_main(self):
         return self.item.startswith('03') or self.item.startswith('04')
+
+    @property
+    def gets_thk_mill(self):
+        if self.remark.startswith("BEV. FILL"):
+            return True
+
+        # TODO: verify this one
+        # if "M1F" in self.remark:
+        #     return True
+
+        return False
 
     def __repr__(self):
         _thk = float_display(self.thk)
