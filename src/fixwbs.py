@@ -33,7 +33,7 @@ class WbsMap:
             if item.part == part and item.wbs == wbs:
                 return item
 
-        raise KeyError
+        raise KeyError(part, wbs)
 
     def has_job(self, item):
         return (item.part[:7], item.shipment) in self.jobs
@@ -51,7 +51,9 @@ class WbsMap:
 class MapPart:
 
     def __init__(self, data, direction=ChangeType.PASS):
-        self.sql_id = data.id
+        if direction != ChangeType.ADD:
+            self.sql_id = data.id
+
         self.part = data.part
         self.shipment = data.shipment
         self.wbs = data.wbs
