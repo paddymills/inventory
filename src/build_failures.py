@@ -1,32 +1,32 @@
 
-import pyautogui
-import time
-
 from argparse import ArgumentParser
 from datetime import datetime
 from os import path, listdir
+from pyautogui import hotkey, press
 from re import compile as regex
 from tqdm import tqdm
 
+from lib.rpa import ObjectLocation
+
 base = r"\\hssieng\SNData\SimTrans\SAP Data Files"
+sap_archive = r"\\hiifileserv1\sigmanestprd\Archive"
 timestamp = "Production_{:%Y%m%d%H%M%S}.ready".format(datetime.now())
 output_filename = path.join(base, "other", timestamp)
 
-NUM_FILES = 500
+NUM_FILES = 200
 
 # regular expressions
 INBOX_TEXT_1 = regex(r"Planned order not found for (\d{7}[a-zA-Z])-([\w-]+), [\w-]*, ([\d,.]+), Sigmanest Program:(\d+)")
+PROD_FILES = regex(r"Production_\d{14}.ready")
+ARCHIVE_FILES = regex(r"Production_\d{14}.outbound.archive")
+
 JOB_RE = regex(r"\d{7}[a-zA-Z]")
 JOB_MARK_RE = regex(r"\d{7}[a-zA-Z]-[a-zA-Z0-9-]+")
 WBS_RE = regex(r"(?:[SD]-)?(?:\d{7}?-)?(\d{5})")
 PROG_RE = regex(r"\d{5}")
 SPLIT_RE = regex(r"[\t, ]")
 
-# looping offsets
-LOOP_DISPLAY = (2700, 170)
-LOOP_EXPAND = (1956, 625)
-LOOP_BACK = (2210, 60)
-LOOP_DELAY = 1.0
+ObjectLocation.DEFAULT_DELAY = 1.0
 
 class FoundState:
 
@@ -42,7 +42,9 @@ class FailuresFinder:
         ap.add_argument("--txt", action="store_true", help="read from text file")
         ap.add_argument("--nowbs", action="store_true", help="no wbs option for read from text file")
         ap.add_argument("--loop", action="store_true", help="loop to get input (adjust offsets first please)")
+        ap.add_argument("--sap", action="store_true", help="pull data from SAP archive")
         ap.add_argument("--all", action="store_true", help="process all files")
+        ap.add_argument("--max", action="store", default=200, help="max files to process (default: 200)")
 
         self.args = ap.parse_args()
 
@@ -57,11 +59,18 @@ class FailuresFinder:
 
     @property
     def files(self):
-        _files = sorted(listdir(path.join(base, "deleted files")), reverse=True)
+        def get_files(folder, file_re):
+            return sorted([path.join(folder, f) for f in listdir(folder) if file_re.match(f)], reverse=True)
+
+        if self.args.sap:
+            _files = get_files(sap_archive, ARCHIVE_FILES)
+        else:
+            _files = get_files(path.join(base, "deleted files"), PROD_FILES)
+
         if self.args.all:
             return _files
 
-        return _files[:NUM_FILES]
+        return _files[:self.args.max]
 
     @property
     def wbs(self):
@@ -108,14 +117,17 @@ class FailuresFinder:
         input("press any key to end")
 
     def loop_input(self):
+        display_workflow_log = ObjectLocation("Display Workflow Log")
+        expand_data = ObjectLocation("Expand SigmanestInputData arrow")
+        back_arrow = ObjectLocation("Back/Up Arrow (back to Inbox)")
+
         print("Enter args in order -> job mark wbs program")
         print("===================================================")
 
         while 1:
-            pyautogui.click(*LOOP_DISPLAY)
-            time.sleep(LOOP_DELAY)
-            pyautogui.click(*LOOP_EXPAND)
-            pyautogui.hotkey('alt', 'tab')
+            display_workflow_log.click()
+            expand_data.click()
+            hotkey('alt', 'tab')
 
             val = input("> ")
             if not val:
@@ -144,10 +156,8 @@ class FailuresFinder:
             except RuntimeError as e:
                 print(e)
 
-            pyautogui.click(*LOOP_BACK)
-            time.sleep(LOOP_DELAY)
-            pyautogui.press('down')
-            time.sleep(LOOP_DELAY)
+            back_arrow.click()
+            press('down')
 
         print("file placed at: {}".format(output_filename))
 
@@ -194,7 +204,7 @@ class FailuresFinder:
     def find_data(self):
         self.found = FoundState.NONE
         for f in tqdm(self.files, desc="Finding {}".format((self.part, self.wbs, self.prog)), leave=False):
-            with open(path.join(base, "deleted files", f), 'r') as prod_file:
+            with open(f, 'r') as prod_file:
                 for row in prod_file.readlines():
                     if self.row_is_match(row):
                         with open(output_filename, 'a') as res_file:
