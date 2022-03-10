@@ -7,16 +7,14 @@ from re import compile as regex
 from tqdm import tqdm
 
 from lib.rpa import ObjectLocation
+from lib import paths
 
-base = r"\\hssieng\SNData\SimTrans\SAP Data Files"
-sap_archive = r"\\hiifileserv1\sigmanestprd\Archive"
+sap_archive = path.join(paths.SAP_SIGMANEST_PRD, "Archive")
 timestamp = "Production_{:%Y%m%d%H%M%S}.ready".format(datetime.now())
-output_filename = path.join(base, "other", timestamp)
-
-NUM_FILES = 200
+output_filename = path.join(paths.SAP_DATA_FILES, "other", timestamp)
 
 # regular expressions
-INBOX_TEXT_1 = regex(r"Planned order not found for (\d{7}[a-zA-Z])-([\w-]+), [\w-]*, ([\d,.]+), Sigmanest Program:(\d+)")
+INBOX_TEXT_1 = regex(r"Planned order not found for (\d{7}[a-zA-Z])-([\w-]+), [SD]-\d{7}-(\d{5}), ([\d,]+).000, Sigmanest Program:([\d-]+)")
 PROD_FILES = regex(r"Production_\d{14}.ready")
 ARCHIVE_FILES = regex(r"Production_\d{14}.outbound.archive")
 
@@ -39,11 +37,11 @@ class FailuresFinder:
 
     def __init__(self):
         ap = ArgumentParser()
-        ap.add_argument("--txt", action="store_true", help="read from text file")
+        ap.add_argument("-a", "--all", action="store_true", help="process all files")
+        ap.add_argument("-s", "--sap", action="store_true", help="pull data from SAP archive")
+        ap.add_argument("-t", "--txt", action="store_true", help="read from text file")
         ap.add_argument("--nowbs", action="store_true", help="no wbs option for read from text file")
         ap.add_argument("--loop", action="store_true", help="loop to get input (adjust offsets first please)")
-        ap.add_argument("--sap", action="store_true", help="pull data from SAP archive")
-        ap.add_argument("--all", action="store_true", help="process all files")
         ap.add_argument("--max", action="store", default=200, help="max files to process (default: 200)")
 
         self.args = ap.parse_args()
@@ -65,7 +63,7 @@ class FailuresFinder:
         if self.args.sap:
             _files = get_files(sap_archive, ARCHIVE_FILES)
         else:
-            _files = get_files(path.join(base, "deleted files"), PROD_FILES)
+            _files = get_files(path.join(paths.SAP_DATA_FILES, "deleted files"), PROD_FILES)
 
         if self.args.all:
             return _files
@@ -176,7 +174,7 @@ class FailuresFinder:
         argstr = argstr.strip()
 
         if INBOX_TEXT_1.match(argstr):
-            self.job, self.mark, self.in2, self.prog = INBOX_TEXT_1.match(argstr).groups()
+            self.job, self.mark, self._wbs, self.in2, self.prog = INBOX_TEXT_1.match(argstr).groups()
             self.in2 = self.in2.replace(",", "")
             return
 
@@ -226,17 +224,21 @@ class FailuresFinder:
     def row_is_match(self, row):
         # checks if row is a match
         # returns match type, which determines loop exit
+        PART_INDEX = 0
+        WBS_INDEX = 2
+        PROGRAM_INDEX = 12
+        IN2_INDEX = 4
 
         vals = row.split('\t')
-        if vals[0].upper() != self.part:
+        if vals[PART_INDEX].upper() != self.part:
             return False
-        if self.wbs and vals[2] != self.wbs:
+        if self.wbs and vals[WBS_INDEX] != self.wbs:
             return False
-        if self.prog and vals[12] != self.prog:
+        if self.prog and vals[PROGRAM_INDEX] != self.prog:
             return False
 
         # if in2 is supplied (parsed from inbox text), skip when mismatched in2
-        if self.in2 and vals[8] != self.in2:
+        if self.in2 and vals[IN2_INDEX] != self.in2:
             return False
 
         # if we made it this far, then we can assume:
