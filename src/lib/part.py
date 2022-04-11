@@ -135,7 +135,7 @@ class Part:
         _wid = float_display(self.wid)
         _len = float_display(self.len, display_feet=True)
 
-        return "Part<{}: {} x {} x {} [{}] [{}]>".format(self.mark, _thk, _wid, _len, self.matl_grade, self.item)
+        return "Part<{}: {} {} x {} x {} [{}] [{}]>".format(self.mark, self.type, _thk, _wid, _len, self.matl_grade, self.item)
 
     def xml_format(self):
         return (self.mark, self.qty, self.thk, self.wid, self.len, self.matl_grade_cvn,
