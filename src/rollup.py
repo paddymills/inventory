@@ -88,6 +88,8 @@ def pull_locs(locs):
                     Location LIKE ?
                 AND
                     SheetName NOT LIKE 'W%'
+                AND
+                    SheetName NOT LIKE 'SLAB%'
             """, loc)
 
             for row in conn.cursor.fetchall():
