@@ -57,6 +57,9 @@ class Part:
         if self.spec == 'A240 Type 304':
             self.spec = 'A240'
             self.grade = '304'
+        if self.spec == 'A240 Type 316':
+            self.spec = 'A240'
+            self.grade = '316'
         if self.spec == 'A606 TYPE 4':
             self.spec = 'A606'
             self.grade = 'TYPE4'
