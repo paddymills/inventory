@@ -66,6 +66,8 @@ def zfill_loc(loc):
         row, num = LOCATION_RE.match(loc).group(1, 2)
     except TypeError:
         return loc
+    except AttributeError:
+        return loc
 
     return "{}{:02}".format(row, int(num))
 
