@@ -157,7 +157,7 @@ class SheetParser:
 class CnfFileParser:
 
     def __init__(self, processed_only=False):
-        self.ipart = SimpleNamespace(matl=0, qty=4, wbs=2, plant=11, job=1)
+        self.ipart = SimpleNamespace(matl=0, qty=4, wbs=2, plant=11, job=1, program=12)
         self.imatl = SimpleNamespace(matl=6, qty=8, loc=10, wbs=7, plant=11)
 
         self.dirs = [
@@ -196,3 +196,66 @@ class CnfFileParser:
                 result.append(line.upper().split("\t"))
 
         return result
+
+    def parse_row(self, row):
+        if type(row) is str:
+            row = row.split("\t")
+
+        return ParsedCnfRow(row, self.ipart, self.imatl)
+
+class ParsedCnfRow:
+
+    def __init__(self, row, part_indices, matl_indices):
+        # part
+        self.part_name = row[part_indices.matl]
+        self.part_job = row[part_indices.job]
+        self.part_wbs = row[part_indices.wbs]
+        self.part_qty = int(row[part_indices.qty])
+
+        # material
+        self.matl_master = row[matl_indices.matl]
+        self.matl_wbs = row[matl_indices.wbs]
+        self.matl_qty = float(row[matl_indices.qty])
+        self.matl_loc = row[matl_indices.loc]
+        self.matl_plant = row[matl_indices.plant]
+
+        self.program = row[part_indices.program]
+
+        self.matl_qty_per_ea = self.matl_qty / self.part_qty
+
+    def __repr__(self):
+        return "<ParsedCnfRow> {}".format(self.ls())
+
+    def ls(self):
+        return [
+            #part
+            self.part_name,
+            self.part_job,
+            self.part_wbs,
+            "PROD",
+            str(self.part_qty),
+            "EA",
+            
+            # material
+            self.matl_master,
+            self.matl_wbs,
+            "{:.3f}".format( self.matl_qty ),
+            "IN2",
+            self.matl_loc,
+            self.matl_plant,
+            
+            self.program, "\n"
+        ]
+
+    def output(self):
+        return "\t".join(self.ls())
+
+    def __add__(self, other):
+        assert self.part_name == other.part_name, "Cannot add parts with different Marks"
+        assert self.matl_master == other.matl_master, "Cannot add parts with different Material Masters"
+        assert self.matl_wbs == other.matl_wbs, "Cannot add parts with different WBS Elements"
+
+        self.part_qty += other.part_qty
+        self.matl_qty += other.matl_qty
+
+        self.matl_qty_per_ea = self.matl_qty / self.part_qty
