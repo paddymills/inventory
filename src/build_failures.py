@@ -42,7 +42,7 @@ class FailuresFinder:
         ap.add_argument("-t", "--txt", action="store_true", help="read from text file")
         ap.add_argument("--nowbs", action="store_true", help="no wbs option for read from text file")
         ap.add_argument("--loop", action="store_true", help="loop to get input (adjust offsets first please)")
-        ap.add_argument("--max", action="store", default=200, help="max files to process (default: 200)")
+        ap.add_argument("--max", action="store", type=int, default=200, help="max files to process (default: 200)")
 
         self.args = ap.parse_args()
 
