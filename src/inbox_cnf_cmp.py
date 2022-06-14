@@ -97,20 +97,56 @@ class PlannedOrder:
         self.qty -= qty
 
 
-def main():
-    ap = ArgumentParser()
-    ap.add_argument("-i", "--init",      action="store_true", help="run pre-compare scripts")
-    ap.add_argument("-m", "--move",      action="store_true", help="move fixed file to workflow box")
-    ap.add_argument("-n", "--no-export", action="store_true", help="skip export")
-    ap.add_argument("-p", "--parts",     action="store_true", help="export parts list")
-    ap.add_argument("-t", "--tabulate",  action="store_true", help="print tabulated comparison")
-    ap.add_argument("-s", "--sort",      action="store_true", help="sort inbox file")
-    args = ap.parse_args()
+class InboxComparer:
 
-    if args.init:
-        args.parts = args.sort = True
+    def __init__(self):
+        self._parts = None
 
-    if args.sort:
+        self.run()
+
+    def run(self):
+
+        ap = ArgumentParser()
+        ap.add_argument("-i", "--init",      action="store_true", help="run pre-compare scripts")
+        ap.add_argument("-m", "--move",      action="store_true", help="move fixed file to workflow box")
+        ap.add_argument("-n", "--no-export", action="store_true", help="skip export")
+        ap.add_argument("-p", "--parts",     action="store_true", help="export parts list")
+        ap.add_argument("-t", "--tabulate",  action="store_true", help="print tabulated comparison")
+        ap.add_argument("-s", "--sort",      action="store_true", help="sort inbox file")
+        args = ap.parse_args()
+
+        if args.init:
+            args.parts = args.sort = True
+
+        if args.sort:
+            self.sort_inbox()
+
+        # show data
+        if args.tabulate:
+            print(tabulate(
+                [v.tabular() for v in self.parts.values()],
+                headers=["Part", "Burned", "Cnf", "Inbox", "Delta"]
+            ))
+
+        if args.parts:
+            print("🧰 exporting parts.txt ...")
+            with open('tmp/parts.txt', 'w') as partsfile:
+                partsfile.write("\n".join(self.parts.keys()))
+
+        elif args.move:
+            print("🚀 exporting data ...")
+            name = "Production_{:%Y%m%d%H%M%S}.ready".format(datetime.now())
+
+            try:
+                shutil.move("tmp/fixed.ready", os.path.join(r"\\hiifileserv1\sigmanestprd\Outbound", name))
+                shutil.move("tmp/not_fixed.ready", "tmp/inbox.ready")
+            except FileNotFoundError:
+                pass
+
+        elif not args.no_export:
+            self.export
+
+    def sort_inbox(self):
         print("🧾 sorting inbox.ready ...")
         with open('tmp/inbox.ready', 'r+') as inboxfile:
             # read, split, and sort
@@ -124,35 +160,14 @@ def main():
             # sort, join and write
             inboxfile.writelines(["\t".join(line) for line in sorted_data])
 
-    # get data
-    parts = get_data()
-
-    # show data
-    if args.tabulate:
-        print(tabulate(
-            [v.tabular() for v in parts.values()],
-            headers=["Part", "Burned", "Cnf", "Inbox", "Delta"]
-        ))
-
-    if args.parts:
-        print("🧰 exporting parts.txt ...")
-        with open('tmp/parts.txt', 'w') as partsfile:
-            partsfile.write("\n".join(parts.keys()))
-
-    elif args.move:
-        print("🚀 exporting data ...")
-        name = "Production_{:%Y%m%d%H%M%S}.ready".format(datetime.now())
-        shutil.move("tmp/fixed.ready", os.path.join(r"\\hiifileserv1\sigmanestprd\Outbound", name))
-        shutil.move("tmp/not_fixed.ready", "tmp/inbox.ready")
-
-    elif not args.no_export:
+    def export(self):
         # try to fix things
         print("🛠️ fixing things ...")
         fixed = open("tmp/fixed.ready", "w")
         not_fixed = open("tmp/not_fixed.ready", "w")
 
         print("🛰️ generating data ...")
-        for part in parts.values():
+        for part in self.parts.values():
             f, n = part.fix()
             fixed.writelines(f)
             not_fixed.writelines(n)
@@ -160,45 +175,46 @@ def main():
         fixed.close()
         not_fixed.close()
 
+    @property
+    def parts(self):
+        if self._parts is None:
+            self._parts = dict()
 
-def get_data():
-    parts = dict()
+            # get inbox errors
+            with open("tmp/inbox.ready", 'r') as f:
+                parser = CnfFileParser()
+                for line in f.readlines():
+                    parsed = parser.parse_row(line.upper())
 
-    # get inbox errors
-    with open("tmp/inbox.ready", 'r') as f:
-        parser = CnfFileParser()
-        for line in f.readlines():
-            parsed = parser.parse_row(line.upper())
+                    if parsed.part_name not in parts:
+                        self._parts[parsed.part_name] = Part(parsed.part_name)
 
-            if parsed.part_name not in parts:
-                parts[parsed.part_name] = Part(parsed.part_name)
+                    part = self._parts[parsed.part_name]
 
-            part = parts[parsed.part_name]
+                    part.inbox += parsed.part_qty
+                    part.add_entry(parsed)
 
-            part.inbox += parsed.part_qty
-            part.add_entry(parsed)
+            # get number of each part confirmed from export.csv
+            with open("tmp/export.csv", "r") as export:
+                for row in csv.DictReader(export):
+                    part = row["Material Number"]
+                    wbs = row["WBS Element"]
+                    plant = row["Plant"]
+                    qty = int(row["Order quantity (GMEIN)"])
 
-    # get number of each part confirmed from export.csv
-    with open("tmp/export.csv", "r") as export:
-        for row in csv.DictReader(export):
-            part = row["Material Number"]
-            wbs = row["WBS Element"]
-            plant = row["Plant"]
-            qty = int(row["Order quantity (GMEIN)"])
+                    order_type = row["Order Type"]
 
-            order_type = row["Order Type"]
+                    if part not in parts:
+                        continue
 
-            if part not in parts:
-                continue
+                    if order_type == "PP01":
+                        self._parts[part].cnf += qty
+                    elif order_type == "PR":
+                        self._parts[part].orders.append(PlannedOrder(wbs, plant, qty))
+                    else:
+                        print("unmatched order type:", order_type)
 
-            if order_type == "PP01":
-                parts[part].cnf += qty
-            elif order_type == "PR":
-                parts[part].orders.append(PlannedOrder(wbs, plant, qty))
-            else:
-                print("unmatched order type:", order_type)
-
-    return parts
+        return self._parts
 
 if __name__ == "__main__":
-    main()
+    InboxComparer()
