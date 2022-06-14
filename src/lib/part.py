@@ -64,6 +64,9 @@ class Part:
             self.spec = 'A606'
             self.grade = 'TYPE4'
 
+        if "SRM" in self.remark:
+            self.test = "FCM"
+
         if "HPS" in self.grade:
             zone = '3'
         elif not self.test:
