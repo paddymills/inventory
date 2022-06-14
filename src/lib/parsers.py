@@ -221,12 +221,14 @@ class ParsedCnfRow:
 
         self.program = row[part_indices.program]
 
-        self.matl_qty_per_ea = self.matl_qty / self.part_qty
+    @property
+    def matl_qty_per_ea(self):
+        return self.matl_qty / self.part_qty
 
     def __repr__(self):
         return "<ParsedCnfRow> {}".format(self.ls())
 
-    def ls(self):
+    def ls(self, qty=None):
         return [
             #part
             self.part_name,
@@ -239,7 +241,7 @@ class ParsedCnfRow:
             # material
             self.matl_master,
             self.matl_wbs,
-            "{:.3f}".format( self.matl_qty ),
+            "{:.3f}".format( self.matl_qty_per_ea * (qty or self.part_qty) ),
             "IN2",
             self.matl_loc,
             self.matl_plant,
@@ -247,8 +249,13 @@ class ParsedCnfRow:
             self.program, "\n"
         ]
 
-    def output(self):
-        return "\t".join(self.ls())
+    def output(self, qty=None):
+        result = "\t".join(self.ls(qty))
+
+        self.matl_qty -= self.matl_qty_per_ea * (qty or self.part_qty)
+        self.part_qty -= (qty or self.part_qty)
+
+        return result
 
     def __add__(self, other):
         assert self.part_name == other.part_name, "Cannot add parts with different Marks"
@@ -257,5 +264,3 @@ class ParsedCnfRow:
 
         self.part_qty += other.part_qty
         self.matl_qty += other.matl_qty
-
-        self.matl_qty_per_ea = self.matl_qty / self.part_qty
