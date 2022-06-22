@@ -87,7 +87,7 @@ class Part:
 
         return self.matl_grade + "T2"
 
-    def for_prenest(self, prenest_type='all'):
+    def for_prenest(self, prenest_type='all', skip_stock=True):
         # exclude
         #   - secondary from main prenest
         #   - main from secondary prenest
@@ -101,6 +101,12 @@ class Part:
         # exclude shapes
         if self.type not in ("PL", "SHT"):
             return False
+
+        if skip_stock:
+            return True
+
+        # only place stock plate match tests below here
+        # ---------------------------------------------
 
         # not compatible with 50/50WT2
         if not STOCK_GRADES.match(self.matl_grade):
