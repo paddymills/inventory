@@ -28,6 +28,9 @@ STOCK_THK = [
     0.75,
     0.875,
     1.0,
+    1.125,
+    1.25,
+    1.5
 ]
 
 def float_display(f, display_feet=False, force_zero=False):
