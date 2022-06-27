@@ -120,11 +120,11 @@ class Part:
             return True
         if self.thk <= 0.375 and self.len > 120.0:
             return True
-        if self.len > 240.0:
+        elif self.len > 240.0:
             return True
 
         if self.thk not in STOCK_THK:
-            if self.gets_thk_mill and self.thk <= 1.0:
+            if self.gets_thk_mill and self.thk <= max(STOCK_THK):
                 return False
             return True
 
