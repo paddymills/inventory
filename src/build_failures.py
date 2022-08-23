@@ -36,15 +36,15 @@ class FoundState:
 class FailuresFinder:
 
     def __init__(self):
-        ap = ArgumentParser()
-        ap.add_argument("-a", "--all", action="store_true", help="process all files")
-        ap.add_argument("-s", "--sap", action="store_true", help="pull data from SAP archive")
-        ap.add_argument("-t", "--txt", action="store_true", help="read from text file")
-        ap.add_argument("--nowbs", action="store_true", help="no wbs option for read from text file")
-        ap.add_argument("--loop", action="store_true", help="loop to get input (adjust offsets first please)")
-        ap.add_argument("--max", action="store", type=int, default=200, help="max files to process (default: 200)")
-
-        self.args = ap.parse_args()
+        self.ap = ArgumentParser()
+        self.ap.add_argument("-a", "--all", action="store_true", help="process all files")
+        self.ap.add_argument("-s", "--sap", action="store_true", help="pull data from SAP archive")
+        self.ap.add_argument("-t", "--txt", action="store_true", help="read from text file")
+        self.ap.add_argument("--name", action="store", help="save output to tmp dir as [name]")
+        self.ap.add_argument("--nowbs", action="store_true", help="no wbs option for read from text file")
+        self.ap.add_argument("--loop", action="store_true", help="loop to get input (adjust offsets first please)")
+        self.ap.add_argument("--max", action="store", type=int, default=200, help="max files to process (default: 200)")
+        self._args = None
 
         self.job   = None
         self.mark  = None
@@ -54,6 +54,19 @@ class FailuresFinder:
         self.in2 = None
 
         self.found = FoundState.NONE
+
+    @property
+    def args(self):
+        if self._args is None:
+            self.args = self.ap.parse_args()
+
+        return self._args
+
+
+    def with_args(self, *args):
+        self._args = self.ap.parse_args(args)
+
+        return self
 
     @property
     def files(self):
@@ -200,6 +213,9 @@ class FailuresFinder:
             raise RuntimeError("Not all arguments were provided")
 
     def find_data(self):
+        if self.args.name:
+            output_filename = "tmp/{}.ready".format(self.args.name)
+
         self.found = FoundState.NONE
         for f in tqdm(self.files, desc="Finding {}".format((self.part, self.wbs, self.prog)), leave=False):
             with open(f, 'r') as prod_file:
