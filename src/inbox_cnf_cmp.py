@@ -8,7 +8,8 @@ from datetime import datetime
 from collections import defaultdict
 from tabulate import tabulate
 
-from lib.db import SndbConnection
+from build_failures import FailuresFinder
+from lib.db import SndbConnection, bom
 from lib.parsers import CnfFileParser
 
 
@@ -40,8 +41,20 @@ class Part:
 
         return 0
 
+    @property
+    def bom(self):
+        job, mark = self.name.split("-", 1)
+
+        total = 0
+        for shipment in range(1, 20):
+            bom_row = bom(job, shipment, mark)
+            if bom_row:
+                total += bom_row.qty
+
+        return total
+
     def tabular(self):
-        return [self.name, self.burned, self.cnf, self.inbox, self.burned - self.cnf - self.inbox]
+        return [self.name, self.bom, self.burned, self.cnf, self.inbox, self.burned - self.cnf - self.inbox]
 
     def add_entry(self, entry):
         # print("Adding {}({}) to...".format(entry.program, entry.part_qty))
@@ -107,6 +120,7 @@ class InboxComparer:
     def run(self):
 
         ap = ArgumentParser()
+        ap.add_argument("-v", "--verbose",   action="count", default=0, help="set verbosity level")
         ap.add_argument("-i", "--init",      action="store_true", help="run pre-compare scripts")
         ap.add_argument("-m", "--move",      action="store_true", help="move fixed file to workflow box")
         ap.add_argument("-n", "--no-export", action="store_true", help="skip export")
@@ -115,7 +129,12 @@ class InboxComparer:
         ap.add_argument("-s", "--sort",      action="store_true", help="sort inbox file")
         args = ap.parse_args()
 
+        if args.verbose > 0:
+            print(args)
+
         if args.init:
+            if not os.path.exists('tmp/inbox.ready'):
+                FailuresFinder().with_args("--sap", "--txt", "--name", "inbox").run()
             args.parts = args.sort = True
 
         if args.sort:
@@ -125,7 +144,7 @@ class InboxComparer:
         if args.tabulate:
             print(tabulate(
                 [v.tabular() for v in self.parts.values()],
-                headers=["Part", "Burned", "Cnf", "Inbox", "Delta"]
+                headers=["Part", "Bom", "Burned", "Cnf", "Inbox", "Delta"]
             ))
 
         if args.parts:
@@ -143,8 +162,8 @@ class InboxComparer:
             except FileNotFoundError:
                 pass
 
-        elif not args.no_export:
-            self.export
+        elif args.no_export is False:
+            self.export()
 
     def sort_inbox(self):
         print("🧾 sorting inbox.ready ...")
@@ -186,7 +205,7 @@ class InboxComparer:
                 for line in f.readlines():
                     parsed = parser.parse_row(line.upper())
 
-                    if parsed.part_name not in parts:
+                    if parsed.part_name not in self._parts:
                         self._parts[parsed.part_name] = Part(parsed.part_name)
 
                     part = self._parts[parsed.part_name]
@@ -204,7 +223,7 @@ class InboxComparer:
 
                     order_type = row["Order Type"]
 
-                    if part not in parts:
+                    if part not in self._parts:
                         continue
 
                     if order_type == "PP01":
