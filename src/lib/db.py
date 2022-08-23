@@ -5,6 +5,8 @@ from os import getenv
 from datetime import datetime
 from string import Template
 
+from lib.part import Part
+
 SNDB_PRD = "HIIWINBL18"
 SNDB_DEV = "HIIWINBL5"
 
@@ -105,3 +107,24 @@ class SndbConnection(DbConnection):
         if dev:
             self.server = SNDB_DEV
             self.db = "SNDBaseDev"
+
+def bom(job, shipment, mark=None):
+    with DbConnection(server='HSSSQLSERV', use_win_auth=True) as conn:
+        conn.cursor.execute(
+            "EXEC BOM.SAP.GetBOMData @Job=?, @Ship=?",
+            job, shipment
+        )
+
+        if mark:
+            index = None
+            mark = mark.casefold()
+            for row in conn.cursor.fetchall():
+                index = index or [t[0] for t in row.cursor_description].index("Piecemark")
+                
+                if row[index].casefold() == mark:
+                    return Part(row)
+            else:
+                return None
+        
+        # else
+        return [Part(row) for row in conn.cursor.fetchall()]
