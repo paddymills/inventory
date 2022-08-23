@@ -13,11 +13,13 @@ LOCATION_RE = regex(r'([A-Za-z])(\d+)')
 def main():
     dmain = main_yard()
     dsecondary = detail_bay()
+    dhs02 = williamsport()
 
     dump_to_xl([
         # dict(name="Plant 2 Yard",       data=dmain),
         # dict(name="Detail Bay Yard",    data=dsecondary),
-        dict(name="SigmaNest",          data=[*dmain, *dsecondary])
+        dict(name="lancaster",    data=[*dmain, *dsecondary]),
+        dict(name="williamsport", data=dhs02),
     ])
 
     if "export.XLSX" in [b.name for b in xlwings.books]:
@@ -28,6 +30,9 @@ def main_yard():
     locs = ["{}%".format(x) for x in "ABCDEFGS"]
 
     return pull_locs(locs)
+
+def williamsport():
+    return pull_hs02()
 
 
 def detail_bay():
@@ -90,6 +95,38 @@ def pull_locs(locs):
                     Location LIKE ?
                 AND
                     SheetName NOT LIKE 'W%'
+                AND
+                    SheetName NOT LIKE 'SLAB%'
+            """, loc)
+
+            for row in conn.cursor.fetchall():
+                key = "{}_{}_{}".format(row.loc, row.mm, row.wbs)
+                if key not in data:
+                    data[key] = [row.loc, row.mm, row.wbs, 0, row.uom]
+
+                data[key][3] += row.area
+
+    return sorted(data.values(), key=lambda x: (zfill_loc(x[0]), x[1], x[2]))
+
+
+def pull_hs02(locs):
+    data = dict()
+
+    with db.SndbConnection() as conn:
+        for loc in locs:
+            conn.cursor.execute("""
+                SELECT
+                    Location AS loc,
+                    PrimeCode AS mm,
+                    Mill AS wbs,
+                    Qty * Area AS area,
+                    Remark as uom
+                FROM
+                    Stock
+                WHERE
+                    Location LIKE ?
+                AND
+                    SheetName LIKE 'W%'
                 AND
                     SheetName NOT LIKE 'SLAB%'
             """, loc)
