@@ -44,6 +44,7 @@ def main():
         )
 
         for r in conn.cursor.fetchall():
+            # print(r)
             p = part.Part(r)
 
             if p.for_prenest(args.all, args.no_stock):
