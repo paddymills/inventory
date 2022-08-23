@@ -1,222 +1,147 @@
 
+from argparse import ArgumentParser
+from datetime import date
+from os import path
+import pandas
 import xlwings
 
 from lib import db
-from lib import printer
 
-from argparse import ArgumentParser
-from re import compile as regex
+onedrive = r"C:\Users\pmiller1\OneDrive - high.net\inventory_recon"
+xl_file = r"C:\users\pmiller1\Documents\SAP\SAP GUI\export.XLSX"
+query = """
+SELECT
+	Plant, Location, MaterialMaster, Wbs,
+	ROUND(SUM(Area), 3) AS Area
+FROM (
+	SELECT
+		IIF(LEFT(SheetName, 1)='W', 'HS02', 'HS01') AS Plant,
+		Location,
+		PrimeCode AS MaterialMaster,
+		Mill AS Wbs,
+		Qty * Area AS Area
+	FROM
+		Stock
+	WHERE
+		SheetName NOT LIKE 'SLAB%'
+) AS Stock
+GROUP BY
+	Plant, Location, MaterialMaster, Wbs
+ORDER BY
+	Plant, Location, MaterialMaster, Wbs
+"""
 
-LOCATION_RE = regex(r'([A-Za-z])(\d+)')
+sap_col_rename = {
+	"Material Number": "MaterialMaster",
+	"Storage Location": "Location",
+	"Unrestricted": "Area",
+	"Base Unit of Measure": "UoM",
+	"Special stock number": "Wbs",
+	"Plant": "Plant", 	# so that we have the key to keep this column
+}
+
+def get_sn(export=False, from_csv=False):
+	if from_csv:
+		df = pandas.read_csv(r"C:\temp\rollup_sn.csv")
+	else:
+		data = dict()
+		with db.SndbConnection() as conn:
+			conn.cursor.execute(query)
+
+			results = conn.collect_table_data()
+			head = results.pop(0)
+			for i, col in enumerate(head):
+				data[col] = [r[i] for r in results]
+
+		df = pandas.DataFrame(data)
+
+		if export:
+			df.to_csv(r"C:\temp\rollup_sn.csv", index=False)
+
+
+	df = df.dropna(subset='MaterialMaster')
+	df = df.set_index(["MaterialMaster", "Plant", "Location", "Wbs"])
+
+	
+	return df
+
+def get_sap():
+	df = pandas.read_excel(xl_file)
+	df = df.rename(columns=sap_col_rename)
+	df = df.filter(items=sap_col_rename.values())
+	df = df.dropna(subset='MaterialMaster')
+	df = df.set_index(["MaterialMaster", "Plant", "Location", "Wbs"])
+	
+	return df
+
+
+def do_compare(sn, sap):
+	sap = sap.rename(columns={"Area": "SAP"})
+	sn = sn.rename(columns={"Area": "Sigmanest"})
+
+	df = sap.join(sn,
+		how='outer',
+		lsuffix="_sap",
+		rsuffix="_sn",
+	)
+
+	df = df.fillna(value={"UoM": "IN2"})
+
+	df = df.reset_index(level='Plant')  # remove Plant from index
+	df = df.sort_index()
+
+	hs01 = df.loc[df['Plant'] == "HS01"]
+	hs02 = df.loc[df['Plant'] == "HS02"]
+
+	return hs01.drop(columns="Plant"), hs02.drop(columns="Plant")
 
 
 def main():
-    dmain = main_yard()
-    dsecondary = detail_bay()
-    dhs02 = williamsport()
+	parser = ArgumentParser()
+	parser.add_argument("-e", "--export", action="store_true", help="save Sigmanest state as csv file")
+	parser.add_argument("-c", "--csv", action="store_true", help="read Sigmanest state from csv file")
+	parser.add_argument("-o", "--overwrite", action="store_true", help="overwrite output file instead of appending count")
+	parser.add_argument("-v", "--verbose", action="count", default=0, help="Verbosity level")
+	args = parser.parse_args()
 
-    dump_to_xl([
-        # dict(name="Plant 2 Yard",       data=dmain),
-        # dict(name="Detail Bay Yard",    data=dsecondary),
-        dict(name="lancaster",    data=[*dmain, *dsecondary]),
-        dict(name="williamsport", data=dhs02),
-    ])
+	sn = get_sn(export=args.export, from_csv=args.csv)
+	if args.export:
+		return
 
-    if "export.XLSX" in [b.name for b in xlwings.books]:
-        do_compare()
+	sap = get_sap()
+	lanc, wilpo = do_compare(sn, sap)
 
+	if args.verbose > 0:
+		print(sn)
+		print(sap)
+	if args.verbose > 1:
+		print(lanc)
+		print(wilpo)
 
-def main_yard():
-    locs = ["{}%".format(x) for x in "ABCDEFGS"]
+	wb = xlwings.Book(path.join(onedrive, "template.xlsx"))
 
-    return pull_locs(locs)
+	datasets = [
+		("Sigmanest", sn),
+		("SAP", sap),
+		("Lancaster", lanc),
+		("Williamsport", wilpo),
+	]
+	for name, data in datasets:
+		sheet = wb.sheets(name)
+		sheet.range("A1").value = data
+		sheet.autofit()
 
-def williamsport():
-    return pull_hs02()
+	save_name = date.today().strftime("%Y-%m-%d") + ".xlsx"
+	if not args.overwrite:
+		count = 1
+		while path.exists(path.join(onedrive, save_name)):
+			save_name = "{}_{}.xlsx".format(save_name[:10], count)
+			count += 1
 
-
-def detail_bay():
-    locs = ["{}%".format(x) for x in "HIJKLMNT"]
-
-    return pull_locs(locs)
-
-
-def staged_or_burned():
-    data = dict()
-    with db.SndbConnection() as conn:
-        conn.cursor.execute("""
-            SELECT
-                Location AS loc,
-                PrimeCode AS mm,
-                Mill AS wbs,
-                Qty * Area AS area
-            FROM
-                Stock
-            WHERE
-                Location='XPARTS'
-        """)
-
-        for row in db.cursor.fetchall():
-            key = "{}_{}_{}".format(row.loc, row.mm, row.wbs)
-            if key not in data:
-                data[key] = [row.loc, row.mm, row.wbs, 0]
-
-            data[key][-1] += row.area
-
-    return [x for x in data.values()]
-
-
-def zfill_loc(loc):
-    try:
-        row, num = LOCATION_RE.match(loc).group(1, 2)
-    except TypeError:
-        return loc
-    except AttributeError:
-        return loc
-
-    return "{}{:02}".format(row, int(num))
-
-
-def pull_locs(locs):
-    data = dict()
-
-    with db.SndbConnection() as conn:
-        for loc in locs:
-            conn.cursor.execute("""
-                SELECT
-                    Location AS loc,
-                    PrimeCode AS mm,
-                    Mill AS wbs,
-                    Qty * Area AS area,
-                    Remark as uom
-                FROM
-                    Stock
-                WHERE
-                    Location LIKE ?
-                AND
-                    SheetName NOT LIKE 'W%'
-                AND
-                    SheetName NOT LIKE 'SLAB%'
-            """, loc)
-
-            for row in conn.cursor.fetchall():
-                key = "{}_{}_{}".format(row.loc, row.mm, row.wbs)
-                if key not in data:
-                    data[key] = [row.loc, row.mm, row.wbs, 0, row.uom]
-
-                data[key][3] += row.area
-
-    return sorted(data.values(), key=lambda x: (zfill_loc(x[0]), x[1], x[2]))
-
-
-def pull_hs02(locs):
-    data = dict()
-
-    with db.SndbConnection() as conn:
-        for loc in locs:
-            conn.cursor.execute("""
-                SELECT
-                    Location AS loc,
-                    PrimeCode AS mm,
-                    Mill AS wbs,
-                    Qty * Area AS area,
-                    Remark as uom
-                FROM
-                    Stock
-                WHERE
-                    Location LIKE ?
-                AND
-                    SheetName LIKE 'W%'
-                AND
-                    SheetName NOT LIKE 'SLAB%'
-            """, loc)
-
-            for row in conn.cursor.fetchall():
-                key = "{}_{}_{}".format(row.loc, row.mm, row.wbs)
-                if key not in data:
-                    data[key] = [row.loc, row.mm, row.wbs, 0, row.uom]
-
-                data[key][3] += row.area
-
-    return sorted(data.values(), key=lambda x: (zfill_loc(x[0]), x[1], x[2]))
-
-
-def dump_to_xl(datasets):
-    wb = xlwings.Book()
-
-    for i, data in enumerate(datasets):
-        try:
-            sheet = wb.sheets[i]
-        except IndexError:
-            sheet = wb.sheets.add(after=sheet)
-
-        sheet.name = data["name"]
-        sheet.range("A1").value = ["Location", "SAP MM", "WBS Element", "Qty", "UoM"]
-        sheet.range("A2").value = data["data"]
-        sheet.range("D:D").number_format = '0.000'
-        sheet.autofit()
-
-
-def do_compare():
-    wb = xlwings.books.active
-    xlwings.books["export.XLSX"].sheets[0].copy(after=wb.sheets[-1], name="SAP")
-
-    sheet = wb.sheets["SAP"]
-
-    quantifiers = wb.sheets["SigmaNest"].range("A2:C2").expand('down').value
-    for r in range(2, sheet.range("A2").expand('down').end('down').row + 1):
-        if not sheet.range(r, 2).value:
-            break
-
-        quantifiers.append([sheet.range(r, x).value for x in (4, 1, 8)])
-
-    sheet = wb.sheets.add("Compare", after=wb.sheets[-1])
-    sheet.range("A1").value = ["Location", "SAP MM", "WBS Element"]
-    sheet.range("A1").value = quantifiers
-
-    sheet.autofit()
-
-
-def show_part(part, as_csv=False):
-    with db.SndbConnection(func="wbsmap") as conn:
-        conn.cursor.execute("""
-            SELECT * FROM SAPPartWBS
-            WHERE PartName=?
-        """, part)
-
-        data = conn.collect_table_data()
-
-    printer.print_to_source(data)
-
-
-def get_last_10_burned(as_csv=False):
-    with db.SndbConnection() as conn:
-        conn.cursor.execute("""
-            SELECT TOP 10
-                CompletedDateTime AS Timestamp,
-                ProgramName AS Program,
-                SheetName AS Sheet,
-                MachineName AS Machine
-            FROM CompletedProgram
-            WHERE MachineName NOT LIKE 'Plant_3_%'
-            ORDER BY CompletedDateTime DESC
-        """)
-
-        res = conn.collect_table_data()
-        printer.print_to_source(res, as_csv)
+	print("save:", save_name)
+	wb.save(path.join(onedrive, save_name))
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_argument("--csv", action="store_true", help="Return as csv output")
-    parser.add_argument("--part", help="part to find wbs map for")
-    parser.add_argument("--last", action='store_true', help="part to find wbs map for")
-    args = parser.parse_args()
-
-    if args.part:
-        show_part(args.part, as_csv=args.csv)
-    elif args.last:
-        get_last_10_burned(as_csv=args.csv)
-
-    else:
-        main()
+	# TODO: argparse
+	main()
