@@ -8,7 +8,7 @@ from datetime import datetime
 from collections import defaultdict
 from tabulate import tabulate
 
-from build_failures import FailuresFinder
+from build_failures import FailuresFinder, INBOX_TEXT_1
 from lib.db import SndbConnection, bom
 from lib.parsers import CnfFileParser
 
@@ -150,7 +150,16 @@ class InboxComparer:
         if args.parts:
             print("🧰 exporting parts.txt ...")
             with open('tmp/parts.txt', 'w') as partsfile:
-                partsfile.write("\n".join(self.parts.keys()))
+                try:
+                    partsfile.write("\n".join(self.parts.keys()))
+                except FileNotFoundError:
+                    parts = list()
+                    with open('input.txt', 'r') as inputtxt:
+                        for line in inputtxt.readlines():
+                            match = INBOX_TEXT_1.match(line.strip())
+                            job, part = match.group(1, 2)
+                            parts.append("{}-{}\n".format(job, part))
+                    partsfile.writelines(sorted(set(parts)))                    
 
         elif args.move:
             print("🚀 exporting data ...")
@@ -213,25 +222,26 @@ class InboxComparer:
                     part.inbox += parsed.part_qty
                     part.add_entry(parsed)
 
-            # get number of each part confirmed from export.csv
-            with open("tmp/export.csv", "r") as export:
-                for row in csv.DictReader(export):
-                    part = row["Material Number"]
-                    wbs = row["WBS Element"]
-                    plant = row["Plant"]
-                    qty = int(row["Order quantity (GMEIN)"])
+            if os.path.exists("tmp/export.csv"):
+                # get number of each part confirmed from export.csv
+                with open("tmp/export.csv", "r") as export:
+                    for row in csv.DictReader(export):
+                        part = row["Material Number"]
+                        wbs = row["WBS Element"]
+                        plant = row["Plant"]
+                        qty = int(row["Order quantity (GMEIN)"])
 
-                    order_type = row["Order Type"]
+                        order_type = row["Order Type"]
 
-                    if part not in self._parts:
-                        continue
+                        if part not in self._parts:
+                            continue
 
-                    if order_type == "PP01":
-                        self._parts[part].cnf += qty
-                    elif order_type == "PR":
-                        self._parts[part].orders.append(PlannedOrder(wbs, plant, qty))
-                    else:
-                        print("unmatched order type:", order_type)
+                        if order_type == "PP01":
+                            self._parts[part].cnf += qty
+                        elif order_type == "PR":
+                            self._parts[part].orders.append(PlannedOrder(wbs, plant, qty))
+                        else:
+                            print("unmatched order type:", order_type)
 
         return self._parts
 
