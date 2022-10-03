@@ -40,10 +40,10 @@ class FailuresFinder:
         self.ap.add_argument("-a", "--all", action="store_true", help="process all files")
         self.ap.add_argument("-s", "--sap", action="store_true", help="pull data from SAP archive")
         self.ap.add_argument("-t", "--txt", action="store_true", help="read from text file")
-        self.ap.add_argument("--name", action="store", help="save output to tmp dir as [name]")
+        self.ap.add_argument("-n", "--name", action="store", help="save output to tmp dir as [name]")
         self.ap.add_argument("--nowbs", action="store_true", help="no wbs option for read from text file")
-        self.ap.add_argument("--loop", action="store_true", help="loop to get input (adjust offsets first please)")
-        self.ap.add_argument("--max", action="store", type=int, default=200, help="max files to process (default: 200)")
+        self.ap.add_argument("-l", "--loop", action="store_true", help="loop to get input (adjust offsets first please)")
+        self.ap.add_argument("-m", "--max", action="store", type=int, default=200, help="max files to process (default: 200)")
         self._args = None
 
         self.job   = None
@@ -58,7 +58,7 @@ class FailuresFinder:
     @property
     def args(self):
         if self._args is None:
-            self.args = self.ap.parse_args()
+            self._args = self.ap.parse_args()
 
         return self._args
 
