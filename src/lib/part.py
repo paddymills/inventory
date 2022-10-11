@@ -33,6 +33,7 @@ STOCK_THK = [
     1.5,
     2.0,
 ]
+MILL_THK_BUFFER = 0.125
 
 def float_display(f, display_feet=False, force_zero=False):
     if display_feet and f >= 12.0:
@@ -124,9 +125,13 @@ class Part:
         elif self.len > 240.0:
             return True
 
+        # if part gets thickness mill and
+        #   is within MILL_THK_BUFFER of a stock thickness
         if self.thk not in STOCK_THK:
-            if self.gets_thk_mill and self.thk <= max(STOCK_THK):
-                return False
+            if self.gets_thk_mill:
+                for thk in filter(lambda x: x > self.thk, STOCK_THK):
+                    if thk - self.thk < MILL_THK_BUFFER:
+                        return False
             return True
 
         return False
