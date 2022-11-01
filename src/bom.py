@@ -65,7 +65,7 @@ def main():
             for p in to_print:
                 addl_cols = [getattr(p, c) for c in args.addlcols]
                 pr.append([p.mark, p.size, p.item, *addl_cols])
-            print(tabulate(pr, headers=["Mark", "Size", "Item", *args.addlcols]))
+            print(tabulate(pr, headers=["Mark", "Size", "Item", *map(lambda x: x.capitalize(),args.addlcols)]))
         else:
             print(tabulate(to_print))
 
