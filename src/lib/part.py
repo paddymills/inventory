@@ -127,14 +127,14 @@ class Part:
 
         # if part gets thickness mill and
         #   is within MILL_THK_BUFFER of a stock thickness
-        if self.thk not in STOCK_THK:
-            if self.gets_thk_mill:
-                for thk in filter(lambda x: x > self.thk, STOCK_THK):
-                    if thk - self.thk < MILL_THK_BUFFER:
-                        return False
-            return True
+        if self.gets_thk_mill:
+            for thk in STOCK_THK:
+                if 0 < thk - self.thk <= MILL_THK_BUFFER:
+                    return False
+        elif self.thk in STOCK_THK:
+            return False
 
-        return False
+        return True
 
     @property
     def is_main(self):
