@@ -152,11 +152,15 @@ class Part:
         return False
 
     def __repr__(self):
+        return "Part<{}: {} [{}] [{}]>".format(self.mark, self.size, self.matl_grade, self.item)
+
+    @property
+    def size(self):
         _thk = float_display(self.thk)
         _wid = float_display(self.wid)
         _len = float_display(self.len, display_feet=True)
 
-        return "Part<{}: {} {} x {} x {} [{}] [{}]>".format(self.mark, self.type, _thk, _wid, _len, self.matl_grade, self.item)
+        return "{} {} x {} x {}".format(self.type, _thk, _wid, _len)
 
     def xml_format(self):
         return (self.mark, self.qty, self.thk, self.wid, self.len, self.matl_grade_cvn,
