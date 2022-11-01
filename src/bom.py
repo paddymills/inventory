@@ -5,6 +5,7 @@ from lib import part
 import pretty_errors
 import xlwings
 
+from tabulate import tabulate
 from argparse import ArgumentParser
 
 XML_PARTS_XLS = r"\\HSSFILESERV1\HSSshared\HSSI Lean\Job Plans\Pre-Nesting Tools\XML PRENESTING\XML-Parts.xls"
@@ -22,6 +23,8 @@ def main():
     parser.add_argument("--no-stock", action="store_true", help="do not skip stock plate")
     parser.add_argument("--fix-workorder", action="store_true", help="fix work order quantities")
     # parser.add_argument("--secondary", action="store_const", const="secondary", default='all', help="skip main member")
+    parser.add_argument("--sort", action="extend", nargs="+", type=str, help="Columns to sort by")
+    parser.add_argument("--addlcols", action="extend", nargs="+", type=str, help="Additional columns to show")
     parser.add_argument("job", nargs="?", default=None)
     parser.add_argument("shipment", nargs="?", default=None)
     args = parser.parse_args()
@@ -37,6 +40,7 @@ def main():
         print(args)
 
     parts = list()
+    to_print = list()
     with db.DbConnection(server='HSSSQLSERV', use_win_auth=True) as conn:
         conn.cursor.execute(
             "EXEC BOM.SAP.GetBOMData @Job=?, @Ship=?",
@@ -50,8 +54,20 @@ def main():
             if p.for_prenest(args.all, args.no_stock):
                 parts.append(p)
 
-            if args.verbose > 0:
-                print(p)
+            if args.verbose > 0 or args.sort or args.addl_cols:
+                to_print.append(p)
+
+    if args.sort:
+        to_print.sort(key=lambda x: [getattr(x, c) for c in args.sort])
+    if to_print:
+        if args.addlcols:
+            pr = list()
+            for p in to_print:
+                addl_cols = [getattr(p, c) for c in args.addlcols]
+                pr.append([p.mark, p.size, p.item, *addl_cols])
+            print(tabulate(pr, headers=["Mark", "Size", "Item", *args.addlcols]))
+        else:
+            print(tabulate(to_print))
 
     if args.fix_workorder:
         fix_workorder(args.job, args.shipment, parts)
