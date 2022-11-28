@@ -201,7 +201,7 @@ class FailuresFinder:
             elif JOB_RE.match(arg):
                 self.job = arg
 
-            elif arg.startswith('5') and PROG_RE.match(arg):
+            elif int(arg[0]) > 3 and PROG_RE.match(arg):
                 self.prog = arg
 
             elif WBS_RE.match(arg):
@@ -219,19 +219,27 @@ class FailuresFinder:
             output_filename = "tmp/{}.ready".format(self.args.name)
 
         self.found = FoundState.NONE
+        self.found_partial = FoundState.NONE
+        frow = None
         for f in tqdm(self.files, desc="Finding {}".format((self.part, self.wbs, self.prog)), leave=False):
             with open(f, 'r') as prod_file:
                 for row in prod_file.readlines():
                     if self.row_is_match(row):
-                        with open(output_filename, 'a') as res_file:
-                            res_file.write(row)
+                        frow = row
 
                         if self.found == FoundState.FULL_MATCH:
                             return True
+                    elif self.found_partial == FoundState.WITHOUT_WBS:
+                        frow = row
 
                 # break if found and not searching without program
                 if self.found == FoundState.WITHOUT_WBS:
-                            return True
+                    return True
+
+        if frow:
+            with open(output_filename, 'a') as res_file:
+                res_file.write(frow)
+            return True
 
         if self.found == FoundState.NONE:
             print("Row not found", (self.part, self.wbs, self.prog))
@@ -250,10 +258,12 @@ class FailuresFinder:
         vals = row.split('\t')
         if vals[PART_INDEX].upper() != self.part:
             return False
-        if self.wbs and vals[WBS_INDEX] != self.wbs:
-            return False
         if self.prog and vals[PROGRAM_INDEX] != self.prog:
             return False
+        if vals[WBS_INDEX] != self.wbs:
+            if self.wbs:
+                self.found_partial = FoundState.WITHOUT_WBS
+                return False
 
         # if in2 is supplied (parsed from inbox text), skip when mismatched in2
         if self.in2 and vals[IN2_INDEX] != self.in2:

@@ -156,19 +156,25 @@ class SheetParser:
 
 class CnfFileParser:
 
-    def __init__(self, processed_only=False):
+    def __init__(self, processed_only=False, dir=None):
         self.ipart = SimpleNamespace(matl=0, qty=4, wbs=2, plant=11, job=1, program=12)
         self.imatl = SimpleNamespace(matl=6, qty=8, loc=10, wbs=7, plant=11)
 
-        self.dirs = [
-            data_file_folder("Processed"),
-        ]
+        if dir is None:
+            self.dirs = [
+                data_file_folder("Processed"),
+            ]
 
-        if not processed_only:
-            for d in ('deleted files', '_temp'):
-                _dir = data_file_folder(d)
-                if path.exists(_dir):
-                    self.dirs.append(_dir)
+            if not processed_only:
+                for d in ('deleted files', '_temp'):
+                    _dir = data_file_folder(d)
+                    if path.exists(_dir):
+                        self.dirs.append(_dir)
+        elif type(dir) is list:
+            self.dirs = dir
+        else:
+            assert type(dir) is str, "CnfFileParser: type of arg dir should be a list or a string"
+            self.dirs = [dir]
 
     @property
     def files(self):
@@ -205,21 +211,38 @@ class CnfFileParser:
 
 class ParsedCnfRow:
 
-    def __init__(self, row, part_indices, matl_indices):
-        # part
-        self.part_name = row[part_indices.matl]
-        self.part_job = row[part_indices.job]
-        self.part_wbs = row[part_indices.wbs]
-        self.part_qty = int(row[part_indices.qty])
+    def __init__(self, row, part_indices=None, matl_indices=None):
 
-        # material
-        self.matl_master = row[matl_indices.matl]
-        self.matl_wbs = row[matl_indices.wbs]
-        self.matl_qty = float(row[matl_indices.qty])
-        self.matl_loc = row[matl_indices.loc]
-        self.matl_plant = row[matl_indices.plant]
+        if part_indices and matl_indices:
+            # part
+            self.part_name = row[part_indices.matl]
+            self.part_job = row[part_indices.job]
+            self.part_wbs = row[part_indices.wbs]
+            self.part_qty = int(row[part_indices.qty])
 
-        self.program = row[part_indices.program]
+            # material
+            self.matl_master = row[matl_indices.matl]
+            self.matl_wbs = row[matl_indices.wbs]
+            self.matl_qty = float(row[matl_indices.qty])
+            self.matl_loc = row[matl_indices.loc]
+            self.matl_plant = row[matl_indices.plant]
+
+            self.program = row[part_indices.program]
+        else: # from db
+            # part
+            self.part_name =      row[0]
+            self.part_job =       row[1]
+            self.part_wbs =       row[2]
+            self.part_qty =   int(row[3])
+
+            # material
+            self.matl_master =    row[4]
+            self.matl_wbs =       row[5]
+            self.matl_qty = float(row[6])
+            self.matl_loc =       row[7]
+            self.matl_plant =     row[8]
+
+            self.program =        row[9]
 
     @property
     def matl_qty_per_ea(self):
@@ -228,14 +251,17 @@ class ParsedCnfRow:
     def __repr__(self):
         return "<ParsedCnfRow> {}".format(self.ls())
 
-    def ls(self, qty=None):
+    def ls(self, qty=None, wbs=None):
+        if len(wbs) == 5:
+            wbs = "D-{}-{}".format(self.job[2:], wbs)
+
         return [
             #part
             self.part_name,
             self.part_job,
-            self.part_wbs,
+            wbs or self.part_wbs,
             "PROD",
-            str(self.part_qty),
+            str(qty or self.part_qty),
             "EA",
             
             # material
@@ -247,6 +273,24 @@ class ParsedCnfRow:
             self.matl_plant,
             
             self.program, "\n"
+        ]
+
+    def db_input(self):
+        return [
+            #part
+            self.part_name,
+            self.part_job,
+            self.part_wbs,
+            self.part_qty,
+            
+            # material
+            self.matl_master,
+            self.matl_wbs,
+            self.matl_qty,
+            self.matl_loc,
+            self.matl_plant,
+            
+            self.program,
         ]
 
     def output(self, qty=None):
@@ -264,3 +308,80 @@ class ParsedCnfRow:
 
         self.part_qty += other.part_qty
         self.matl_qty += other.matl_qty
+
+
+class ParsedIssueRow:
+
+    def __init__(self, row, part_indices=None, matl_indices=None):
+        index = SimpleNamespace(code=0, job=1, ship=2, program=9, matl=3, qty=5, loc=7, wbs=4, plant=8)
+
+        if part_indices and matl_indices:
+            # part
+            self.code =      row[index.code]
+            self.user1 =     row[index.job]
+            self.user2 =     row[index.ship]
+
+            # material
+            self.matl =      row[index.matl]
+            self.wbs =       row[index.wbs]
+            self.qty = float(row[index.qty])
+            self.loc =       row[index.loc]
+            self.plant =     row[index.plant]
+
+            self.program =   row[index.program]
+        else: # from db
+            # part
+            self.code =      row[0]
+            self.user1 =     row[1]
+            self.user2 =     row[2]
+
+            # material
+            self.matl =      row[3]
+            self.wbs =       row[4]
+            self.qty = float(row[5])
+            self.loc =       row[7]
+            self.plant =     row[8]
+
+            self.program =   row[9]
+
+    def __repr__(self):
+        return "<ParsedCnfRow> {}".format(self.ls())
+
+    def ls(self, qty=None, wbs=None):
+        if len(wbs) == 5:
+            wbs = "D-{}-{}".format(self.job[2:], wbs)
+
+        return [
+            #part
+            self.code,
+            self.user1,
+            self.user2,
+            
+            # material
+            self.matl,
+            self.wbs,
+            "{:.3f}".format( self.qty ),
+            "IN2",
+            self.loc,
+            self.plant,
+            
+            self.program, "\n"
+        ]
+
+    def db_input(self):
+        return [
+            #part
+            self.code,
+            self.user1,
+            self.user2,
+            
+            # material
+            self.matl,
+            self.wbs,
+            self.qty,
+            self.loc,
+            self.plant,
+            
+            self.program,
+        ]
+

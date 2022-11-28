@@ -8,7 +8,7 @@ from datetime import datetime
 from collections import defaultdict
 from tabulate import tabulate
 
-from build_failures import FailuresFinder, INBOX_TEXT_1
+from cleanup.build_failures2 import FailuresFinder, INBOX_TEXT_1
 from lib.db import SndbConnection, bom
 from lib.parsers import CnfFileParser
 
@@ -131,6 +131,11 @@ class InboxComparer:
 
         if args.verbose > 0:
             print(args)
+
+        # TODO: test existence of files on first use and warn
+        if not os.path.exists('tmp/input.txt'):
+            print("❗ No input file. Please load data into tmp/input.txt")
+            return
 
         if args.init:
             if not os.path.exists('tmp/inbox.ready'):

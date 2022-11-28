@@ -1,0 +1,29 @@
+{
+    "python.analysis.typeCheckingMode": "off",
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "database": "C:\\Temp\\sapprod.db",
+            "name": "sapprod",
+            "group": "inventory"
+        },
+        {
+            "mssqlOptions": {
+                "appName": "SQLTools",
+                "useUTC": true,
+                "encrypt": true
+            },
+            "previewLimit": 50,
+            "server": "hiiwinbl18",
+            "port": 1433,
+            "driver": "MSSQL",
+            "name": "sigmanest",
+            "group": "inventory",
+            "database": "SNDBase91",
+            "username": "SNUser",
+            "password": "BestNest1445"
+        }
+    ],
+    "sqltools.useNodeRuntime": true
+}
