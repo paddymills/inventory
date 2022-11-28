@@ -61,7 +61,7 @@ class QueryManager:
             db.execute_sql_file(sql_file, [val, val])
             sql_data = db.collect_table_data()
 
-            printer.print_to_source(sql_data, self.args.csv)
+            printer.print_to_source(sql_data, self.args.csv, sumcols=["Qty"])
 
     def get_query_type(self, val, force_matl):
         if force_matl:
@@ -77,7 +77,7 @@ class QueryManager:
         with SndbConnection(func="SQL Statement") as conn:
             conn.execute(sql)
 
-            printer.print_to_source(conn.collect_table_data())
+            printer.print_to_source(conn.collect_table_data(), sumcols=["Qty"])
 
 
 def test_regex():
