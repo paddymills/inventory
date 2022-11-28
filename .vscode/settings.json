@@ -25,5 +25,5 @@
             "password": "BestNest1445"
         }
     ],
-    "sqltools.useNodeRuntime": true
+    "sqltools.useNodeRuntime": false
 }
