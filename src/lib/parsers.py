@@ -186,7 +186,7 @@ class CnfFileParser:
         prod_data = list()
         num_files = sum([len(listdir(x)) for x in self.dirs])
         with tqdm(desc="Fetching Data", total=num_files) as pbar:
-            for processed_file in Pool().imap(self.file_worker, self.files):
+            for processed_file in Pool().imap(self.parse_file, self.files):
                 pbar.update()
                 for line in processed_file:
                     part = part_name(*line[self.ipart.matl:self.ipart.job+1])
@@ -195,7 +195,7 @@ class CnfFileParser:
 
         return prod_data
 
-    def file_worker(self, f):
+    def parse_file(self, f):
         result = list()
         with open(f, "r") as prod_file:
             for line in prod_file.readlines():
