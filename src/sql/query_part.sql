@@ -31,4 +31,4 @@ FROM PIP
         ON Program.SheetName=Stock.SheetName
 WHERE
     PIP.PartName LIKE ?
-ORDER BY PIP.ArcDateTime
+ORDER BY PIP.PartName, PIP.ArcDateTime
