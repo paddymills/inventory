@@ -2,6 +2,7 @@
 from lib import db
 from lib import part
 
+import csv
 import pretty_errors
 import xlwings
 
@@ -17,28 +18,35 @@ pretty_errors.configure(
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("--verbose", "-v", action="count", default=0, help="set verbosity level")
-    parser.add_argument("--csv", action="store_true", help="Return as csv output")
     parser.add_argument("--all", action="store_const", const="all", default='secondary', help="skip main member")
+    parser.add_argument("--csv", action="store_true", help="Return as csv output")
+    parser.add_argument("--check", action="store_true", help="Return as csv output")
     parser.add_argument("--no-stock", action="store_true", help="do not skip stock plate")
     parser.add_argument("--fix-workorder", action="store_true", help="fix work order quantities")
     # parser.add_argument("--secondary", action="store_const", const="secondary", default='all', help="skip main member")
     parser.add_argument("--sort", action="extend", nargs="+", type=str, help="Columns to sort by")
     parser.add_argument("--addlcols", action="extend", nargs="+", type=str, help="Additional columns to show")
+    parser.add_argument("--verbose", "-v", action="count", default=0, help="set verbosity level")
     parser.add_argument("job", nargs="?", default=None)
     parser.add_argument("shipment", nargs="?", default=None)
     args = parser.parse_args()
 
-    if "-" in args.job:
-        assert args.shipment is None, "Shipment must be specified in either job or shipment arguments"
-        args.job, args.shipment = args.job.split("-")
-
-    if args.fix_workorder:
-        args.no_stock = True
-
     if args.verbose > 1:
         print(args)
 
+    if args.check:
+        return check(args)
+    else:
+        if "-" in args.job:
+            assert args.shipment is None, "Shipment must be specified in either job or shipment arguments"
+            args.job, args.shipment = args.job.split("-")
+
+        if args.fix_workorder:
+            args.no_stock = True
+
+        process(args)
+
+def process(args):
     parts = list()
     to_print = list()
     with db.DbConnection(server='HSSSQLSERV', use_win_auth=True) as conn:
@@ -54,7 +62,7 @@ def main():
             if p.for_prenest(args.all, args.no_stock):
                 parts.append(p)
 
-            if args.verbose > 0 or args.sort or args.addl_cols:
+            if args.verbose > 0 or args.sort or args.addlcols:
                 to_print.append(p)
 
     if args.sort:
@@ -73,6 +81,25 @@ def main():
         fix_workorder(args.job, args.shipment, parts)
     else:
         dump_to_xl(parts, args.job, args.shipment)
+
+
+def check(args):
+    with db.DbConnection(server='HSSSQLSERV', use_win_auth=True) as conn:
+        with open("check.csv") as checkfile:
+            reader = csv.DictReader(checkfile)
+            for row in reader:
+                job, shipment = row['Job'], int(row['Shipment'])
+
+                conn.cursor.execute(
+                    "EXEC BOM.SAP.GetBOMData @Job=?, @Ship=?",
+                    job, shipment
+                )
+
+                if any([part.Part(r).for_prenest(args.all, args.no_stock) for r in conn.cursor.fetchall()]):
+                    print("{}-{} has data now".format(job, shipment))
+                    # TODO: process
+                    #   - will need to set job and shipment in args
+                    #   - will need to wait for user input to continue
 
 
 def fix_workorder(job, shipment, parts):
