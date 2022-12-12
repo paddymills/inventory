@@ -186,7 +186,7 @@ class CnfFileParser:
         prod_data = list()
         num_files = sum([len(listdir(x)) for x in self.dirs])
         with tqdm(desc="Fetching Data", total=num_files) as pbar:
-            for processed_file in Pool().imap(self.parse_file, self.files):
+            for processed_file in Pool().imap(self.file_worker, self.files):
                 pbar.update()
                 for line in processed_file:
                     part = part_name(*line[self.ipart.matl:self.ipart.job+1])
@@ -195,13 +195,22 @@ class CnfFileParser:
 
         return prod_data
 
-    def parse_file(self, f):
+    def file_worker(self, f):
         result = list()
         with open(f, "r") as prod_file:
             for line in prod_file.readlines():
                 result.append(line.upper().split("\t"))
 
         return result
+
+    def parse_file(self, f):
+        for row in self.file_worker(f):
+            if f.startswith("Production_"):
+                yield ParsedCnfRow(row)
+            elif f.startswith("Issue_"):
+                yield ParsedIssueRow(row)
+            else:
+                raise("Unmatched file type for parsing: {}".format(f))
 
     def parse_row(self, row):
         if type(row) is str:
