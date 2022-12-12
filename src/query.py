@@ -9,6 +9,7 @@ from os import path
 REGEX_MAP = [
     # Regex Pattern                                         name
     (r"\d{7}[A-Z]\d{0,2}-\d{5}[A-Z]?",                    "matl"),
+    (r"\d{7}[A-Z]\d{2}-\d{2,5}[A-Z]?",                    "matl"),
     (r"(9-)?(HPS)?[57]0W?(/50W)?[TF]?\d?-\d{4}[A-Z]?",    "matl"),
     (r"[A-Z]{1,2}\d{5,}(-\d)?",                           "sheet"),
 ]
