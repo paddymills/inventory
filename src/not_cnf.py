@@ -6,8 +6,10 @@ from lib.db import SndbConnection
 
 from re import compile as regex
 from collections import defaultdict
+from itertools import groupby
 from types import SimpleNamespace
 from datetime import datetime
+from tabulate import tabulate
 from tqdm import tqdm
 
 
@@ -58,6 +60,8 @@ def main():
             del not_cnf[part]
         except KeyError:
             pass
+
+    print(tabulate([k, sum([x[2] for x in v])] for k,v in groupby(confirmations, lambda x: x[0])))
 
     processed_lines = parsers.CnfFileParser().get_cnf_file_rows([x[0] for x in confirmations])
 
