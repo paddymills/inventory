@@ -39,6 +39,12 @@ def part_name(_part, _job):
     job_end, structure, part = scan_match.groups()
     job_without_structure = job_match.group(1)
 
+    # if _part == "252B-1B-X-M318A":
+    #     print("\nmatches:", scan_match.groups(), "|", job_match.groups())
+    #     print("scan match:", bool(scan_match and job_match))
+    #     print("endswith match:", job_without_structure.endswith(job_end))
+    #     print("partname:", "{}{}-{}".format(job_without_structure, structure, part))
+
     if not job_without_structure.endswith(job_end):
         return _part
 
@@ -162,11 +168,11 @@ class CnfFileParser:
 
         if dir is None:
             self.dirs = [
-                data_file_folder("Processed"),
+                data_file_folder("processed"),
             ]
 
             if not processed_only:
-                for d in ('deleted files', '_temp'):
+                for d in ('deleted files', '_temp', 'original'):
                     _dir = data_file_folder(d)
                     if path.exists(_dir):
                         self.dirs.append(_dir)
@@ -191,6 +197,7 @@ class CnfFileParser:
                 for line in processed_file:
                     part = part_name(*line[self.ipart.matl:self.ipart.job+1])
                     if part in parts:
+                        line[self.ipart.matl] = part    # overwrite part with non-scan part name
                         prod_data.append(line)
 
         return prod_data
