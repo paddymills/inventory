@@ -26,6 +26,8 @@ SPLIT_RE = regex(r"[\t, ]")
 
 ObjectLocation.DEFAULT_DELAY = 1.0
 
+OUTFILE_DEFAULT = "tmp/Production_{}.ready".format(datetime.now().strftime("%Y%m%d%H%M%S"))
+
 class FoundState:
 
     FULL_MATCH      = 1
@@ -217,6 +219,8 @@ class FailuresFinder:
     def find_data(self):
         if self.args.name:
             output_filename = "tmp/{}.ready".format(self.args.name)
+        else:
+            output_filename = OUTFILE_DEFAULT
 
         self.found = FoundState.NONE
         for f in tqdm(self.files, desc="Finding {}".format((self.part, self.wbs, self.prog)), leave=False):
