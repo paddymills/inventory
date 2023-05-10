@@ -108,9 +108,21 @@ class SndbConnection(DbConnection):
             self.server = SNDB_DEV
             self.db = "SNDBaseDev"
 
-def bom(job, shipment, mark=None):
-    with DbConnection(server='HSSSQLSERV', use_win_auth=True) as conn:
-        conn.cursor.execute(
+class BomConnection(DbConnection):
+    """
+        db connection wrapper for the engineering BOM databse
+    """
+
+    def __init__(self, **kwargs):
+        init_kwargs = dict(
+            server="HSSSQLSERV",
+        )
+
+        init_kwargs.update(kwargs)
+        super().__init__(use_win_auth=True, **init_kwargs)
+
+    def get_bom(self, job, shipment, mark=None):
+        self.cursor.execute(
             "EXEC BOM.SAP.GetBOMData @Job=?, @Ship=?",
             job, shipment
         )
@@ -118,7 +130,7 @@ def bom(job, shipment, mark=None):
         if mark:
             index = None
             mark = mark.casefold()
-            for row in conn.cursor.fetchall():
+            for row in self.cursor.fetchall():
                 index = index or [t[0] for t in row.cursor_description].index("Piecemark")
                 
                 if row[index].casefold() == mark:
@@ -127,4 +139,8 @@ def bom(job, shipment, mark=None):
                 return None
         
         # else
-        return [Part(row) for row in conn.cursor.fetchall()]
+        return [Part(row) for row in self.cursor.fetchall()]
+
+
+def bom(job, shipment, mark=None):
+    BomConnection().get_bom(job, shipment, mark)
