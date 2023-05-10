@@ -6,6 +6,7 @@ import csv
 import pretty_errors
 import xlwings
 
+from colorama import Fore, Style
 from tabulate import tabulate
 from argparse import ArgumentParser
 
@@ -96,10 +97,12 @@ def check(args):
                 )
 
                 if any([part.Part(r).for_prenest(args.all, args.no_stock) for r in conn.cursor.fetchall()]):
-                    print("{}-{} has data now".format(job, shipment))
+                    print("{}✔️ {}-{} has data now".format(Fore.GREEN, job, shipment))
                     # TODO: process
                     #   - will need to set job and shipment in args
                     #   - will need to wait for user input to continue
+                else:
+                    print("{}❌{}-{} has no data".format(Fore.RED, job, shipment))
 
 
 def fix_workorder(job, shipment, parts):
