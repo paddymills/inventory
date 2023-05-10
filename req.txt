@@ -1,7 +1,0 @@
-pretty_errors
-pyodbc
-pypiwin32
-pywin32
-tabulate
-tqdm
-xlwings

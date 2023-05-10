@@ -19,4 +19,8 @@ venv.bak/
 *.txt
 *.ready
 *.csv
+*.out
 tmp/
+
+# windows links
+*.lnk
