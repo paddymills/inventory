@@ -16,7 +16,7 @@ from tqdm import tqdm
 def main():
     # regexes
     CNF = regex(r"\d{10}")
-    NOT_CNF = regex(r"\d{7}")
+    NOT_CNF = regex(r"\d{6,7}")
 
     # parse active xl sheet
     print("Parsing", xlwings.books.active.name)
@@ -26,6 +26,9 @@ def main():
     cnf = defaultdict(int)
     not_cnf = defaultdict(list)
     for x in tqdm(list(cohv), desc="Reading orders"):
+        if x.order is None: # if an empty row was parsed
+            break
+
         if CNF.match(x.order):
             cnf[x.matl] += x.qty
         elif NOT_CNF.match(x.order):
@@ -45,6 +48,7 @@ def main():
             continue
 
         qty_burned = reader.get_part_burned_qty(part)
+        print("{} cnf: {} burned: {}".format(part, qty_confirmed, qty_burned))
 
         if qty_confirmed < qty_burned:
             qty_to_confirm = qty_burned - qty_confirmed
