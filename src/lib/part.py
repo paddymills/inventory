@@ -72,10 +72,10 @@ class Part:
         if "SRM" in self.remark:
             self.test = "FCM"
 
-        if "HPS" in self.grade:
-            zone = '3'
-        elif not self.test:
+        if not self.test:
             zone = ''
+        elif "HPS" in self.grade:
+            zone = '3'
         else:
             zone = '2'
 
@@ -89,6 +89,9 @@ class Part:
     def matl_grade_cvn(self):
         if self.test or self.spec in ('A240', 'A606'):
             return self.matl_grade
+        
+        if "HPS" in self.grade:
+            return self.matl_grade + "T3"
 
         return self.matl_grade + "T2"
 
@@ -164,7 +167,7 @@ class Part:
 
     def xml_format(self):
         return (self.mark, self.qty, self.thk, self.wid, self.len, self.matl_grade_cvn,
-                self.item, self.dwg, None, None, None, None, self.remark, float_display(self.len * self.qty, display_feet=True))
+                self.item, self.dwg, *[None] * 5, self.remark, float_display(self.len * self.qty, display_feet=True))
 
     def parse_data(self, data):
         if type(data) is dict:
