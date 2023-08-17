@@ -103,11 +103,11 @@ class SheetParser:
     @property
     def last_row(self):
 
-        return self.sheet.range((2, self.header.matl + 1)).end('down').row
+        return self.sheet.range((2, self.header.matl + 1)).end('down').options(ndim=2).row
 
     @property
     def data_rng(self, start_row=2):
-        return self.sheet.range((start_row, 1), (self.last_row, self.max_col + 1))
+        return self.sheet.range((start_row, 1), (self.last_row, self.max_col + 1)).options(ndim=2)
 
     def parse_header(self, row=None):
 
