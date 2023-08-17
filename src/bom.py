@@ -3,6 +3,7 @@ from lib import db
 from lib import part
 
 import csv
+import os
 import pretty_errors
 import xlwings
 
@@ -31,6 +32,9 @@ def main():
     parser.add_argument("job", nargs="?", default=None)
     parser.add_argument("shipment", nargs="?", default=None)
     args = parser.parse_args()
+
+    # set directory to script root
+    os.chdir(os.path.dirname(__file__))
 
     if args.verbose > 1:
         print(args)
@@ -62,8 +66,10 @@ def process(args):
 
             if p.for_prenest(args.all, args.no_stock):
                 parts.append(p)
+                if args.verbose == 1 or args.sort or args.addlcols:
+                    to_print.append(p)
 
-            if args.verbose > 0 or args.sort or args.addlcols:
+            elif args.verbose > 1:
                 to_print.append(p)
 
     if args.sort:
@@ -76,7 +82,7 @@ def process(args):
                 pr.append([p.mark, p.size, p.item, *addl_cols])
             print(tabulate(pr, headers=["Mark", "Size", "Item", *map(lambda x: x.capitalize(),args.addlcols)]))
         else:
-            print(tabulate(to_print))
+            print(tabulate([(p.mark, p.desc, p.item) for p in to_print], headers=["Mark", "Size", "Item"]))
 
     if args.fix_workorder:
         fix_workorder(args.job, args.shipment, parts)
