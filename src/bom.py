@@ -1,4 +1,5 @@
 
+import subprocess
 from lib import db
 from lib import part
 
@@ -22,7 +23,8 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("--all", action="store_const", const="all", default='secondary', help="skip main member")
     parser.add_argument("--csv", action="store_true", help="Return as csv output")
-    parser.add_argument("--check", action="store_true", help="Return as csv output")
+    parser.add_argument("--check", action="store_true", help="Check if jobs in check.csv have data")
+    parser.add_argument("--commit-loop", action="store_true", help="Loop to generate from positive selections in check.csv")
     parser.add_argument("--no-stock", action="store_true", help="do not skip stock plate")
     parser.add_argument("--fix-workorder", action="store_true", help="fix work order quantities")
     # parser.add_argument("--secondary", action="store_const", const="secondary", default='all', help="skip main member")
@@ -103,12 +105,24 @@ def check(args):
                 )
 
                 if any([part.Part(r).for_prenest(args.all, args.no_stock) for r in conn.cursor.fetchall()]):
-                    print("{}✔️ {}-{} has data now".format(Fore.GREEN, job, shipment))
-                    # TODO: process
-                    #   - will need to set job and shipment in args
-                    #   - will need to wait for user input to continue
+                    print("{}✔️ {}-{} has data now".format(Fore.GREEN, job, shipment), end = '|')
+                    # commit loop: process
+                    #   - set job and shipment in args
+                    #   - wait for user input to continue
+                    if args.commit_loop:
+                        args.job = job
+                        args.shipment = shipment
+                        process(args)
+                        input(" ⇢ press any key to continue")
+                    else:
+                        print();
                 else:
                     print("{}❌{}-{} has no data".format(Fore.RED, job, shipment))
+
+    if args.commit_loop:
+        opt = input("Run xml import? [y/N] ")
+        if opt and opt[0].upper() == 'Y':
+            subprocess.run([r"\\HSSIENG\SNDataPrd\__oys\bin\SNImportXML\SNImportXML.exe", "PROCESSXML"])
 
 
 def fix_workorder(job, shipment, parts):
