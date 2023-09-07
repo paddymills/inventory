@@ -1,7 +1,7 @@
 
 import pyodbc
 
-from os import getenv
+from os import getenv, path
 from datetime import datetime
 from string import Template
 
@@ -39,7 +39,8 @@ class DbConnection:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self._cnxn.close()
+        if self._cnxn is not None:
+            self._cnxn.close()
 
     def _make_cnxn(self):
         self._cnxn = pyodbc.connect(self.CS_TEMP.substitute(**self.__dict__))
@@ -68,6 +69,14 @@ class DbConnection:
             self.cursor.execute(sql, *args)
 
         return self
+    
+    def query_from_sql_file(self, file_path, *args):
+        assert path.exists(file_path), "SQL file `{}` does not exist".format(file_path)
+
+        with open(file_path, 'r') as sql_file:
+            sql = sql_file.read()
+
+            return self.cursor.execute(sql, *args)
 
     def collect_table_data(self):
         min_date = datetime(1900, 1, 1)
