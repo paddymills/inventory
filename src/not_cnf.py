@@ -48,7 +48,7 @@ def main():
             continue
 
         qty_burned = reader.get_part_burned_qty(part)
-        print("{} cnf: {} burned: {}".format(part, qty_confirmed, qty_burned))
+        # print("{} cnf: {} burned: {}".format(part, qty_confirmed, qty_burned))
 
         if qty_confirmed < qty_burned:
             qty_to_confirm = qty_burned - qty_confirmed
