@@ -8,7 +8,7 @@ SELECT * FROM
         Program.ProgramName     AS Program,
         Stock.HeatNumber        AS Heat,
         Stock.BinNumber         AS PO
-    FROM StockArchive AS Stock
+    FROM StockHistory AS Stock
         INNER JOIN ProgArchive AS Program
             ON Stock.SheetName=Program.SheetName
     WHERE
