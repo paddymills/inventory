@@ -13,8 +13,8 @@ from string import Template
 
 from lib.part import Part
 
-SNDB_PRD = "HIIWINBL18"
-SNDB_DEV = "HIIWINBL5"
+SNDB_PRD = "HSSSNData"
+SNDB_DEV = "HIISQLSERV6"
 
 CONN_STR_USER_AUTH = Template("DRIVER={$driver};SERVER=$server;UID=$user;PWD=$pwd;DATABASE=$db;")
 CONN_STR_WIN_AUTH = Template("DRIVER={$driver};SERVER=$server;Trusted_connection=yes;")
