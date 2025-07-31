@@ -1,4 +1,10 @@
 
+# /// script
+# dependencies = [
+#   "pyodbc",
+#   "tabulate"
+# ]
+# ///
 import re
 
 from lib.db import SndbConnection

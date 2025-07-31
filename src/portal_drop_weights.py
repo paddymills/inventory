@@ -1,4 +1,11 @@
 
+# /// script
+# dependencies = [
+#   "pyodbc",
+#   "xlwings"
+# ]
+# ///
+
 from lib.db import SndbConnection
 
 import os

@@ -1,4 +1,10 @@
 
+# /// script
+# dependencies = [
+#   "pyodbc"
+# ]
+# ///
+
 import pyodbc
 
 from os import getenv, path
