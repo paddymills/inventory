@@ -42,10 +42,10 @@ from ProgArchive as prog
 				pip.ProgramName,
 				p.Data1 as job
 			from PIPArchive as pip
-				inner join Part as p
+				inner join PartArchive as p
 					on pip.PartName=p.PartName
 			where
-				pip.WONumber like '1210027E-7-%'
+				pip.WONumber like '1210027[BE]-[27]-%'
 				and pip.TransType = 'SN102'
 		) as a
 		group by ProgramName
